@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>디자인 템플릿 미리보기</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', 'Malgun Gothic', sans-serif; background: #111; color: #eee; }
+.header { text-align: center; padding: 40px 20px 20px; }
+.header h1 { font-size: 28px; margin-bottom: 8px; }
+.header p { color: #999; font-size: 15px; }
+.templates { display: flex; flex-direction: column; gap: 60px; padding: 40px; max-width: 1200px; margin: 0 auto; }
+.template-section { border: 2px solid #333; border-radius: 16px; overflow: hidden; }
+.template-label {
+  padding: 16px 24px; font-size: 18px; font-weight: 700;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.template-label .desc { font-size: 13px; font-weight: 400; color: #999; }
+.preview { height: 600px; overflow: hidden; position: relative; }
+.preview iframe { width: 100%; height: 100%; border: none; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>디자인 템플릿 선택</h1>
+  <p>5가지 디자인 중 마음에 드는 것을 선택해주세요</p>
+</div>
+<div class="templates">
+
+  <!-- 템플릿 1 -->
+  <div class="template-section" style="border-color:#6366f1;">
+    <div class="template-label" style="background:#6366f1;">
+      <span>1. Glassmorphism (글래스모피즘)</span>
+      <span class="desc" style="color:#c7d2fe;">반투명 유리 효과 · 보라색 그라데이션 · 모던</span>
+    </div>
+    <div class="preview"><iframe src="template1.html"></iframe></div>
+  </div>
+
+  <!-- 템플릿 2 -->
+  <div class="template-section" style="border-color:#10b981;">
+    <div class="template-label" style="background:#10b981;">
+      <span>2. Minimal Light (미니멀 라이트)</span>
+      <span class="desc" style="color:#d1fae5;">깔끔한 화이트 · 민트 포인트 · 심플</span>
+    </div>
+    <div class="preview"><iframe src="template2.html"></iframe></div>
+  </div>
+
+  <!-- 템플릿 3 -->
+  <div class="template-section" style="border-color:#f59e0b;">
+    <div class="template-label" style="background:#f59e0b; color:#1a1a1a;">
+      <span>3. Warm Gradient (따뜻한 그라데이션)</span>
+      <span class="desc" style="color:#78350f;">오렌지/노랑 그라데이션 · 카드 UI · 부드러운</span>
+    </div>
+    <div class="preview"><iframe src="template3.html"></iframe></div>
+  </div>
+
+  <!-- 템플릿 4 -->
+  <div class="template-section" style="border-color:#06b6d4;">
+    <div class="template-label" style="background:#06b6d4;">
+      <span>4. Cyberpunk Neon (사이버펑크 네온)</span>
+      <span class="desc" style="color:#cffafe;">네온 효과 · 다크 배경 · 미래적</span>
+    </div>
+    <div class="preview"><iframe src="template4.html"></iframe></div>
+  </div>
+
+  <!-- 템플릿 5 -->
+  <div class="template-section" style="border-color:#8b5cf6;">
+    <div class="template-label" style="background:linear-gradient(135deg,#1e293b,#334155);">
+      <span>5. Notion Style (노션 스타일)</span>
+      <span class="desc" style="color:#94a3b8;">깔끔한 다크 · 좌측 사이드바 · 실용적</span>
+    </div>
+    <div class="preview"><iframe src="template5.html"></iframe></div>
+  </div>
+
+</div>
+</body>
+</html>
