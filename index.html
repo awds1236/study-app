@@ -474,6 +474,10 @@ body {
       </div>
     </div>
     <div class="card">
+      <div class="card-title">📊 과목별 학습 현황</div>
+      <div id="subjectStats"></div>
+    </div>
+    <div class="card">
       <div class="card-title">📊 최근 학습 기록</div>
       <div id="recentHistory">
         <div class="empty-state"><p>아직 학습 기록이 없습니다. 문제를 풀어보세요!</p></div>
@@ -525,15 +529,7 @@ body {
         <div class="form-group">
           <label class="form-label">과목 선택</label>
           <select class="select" id="conceptSubject">
-            <option value="">전체</option>
-            <option value="컴퓨터일반">컴퓨터일반</option>
-            <option value="정보보호론">정보보호론</option>
-            <option value="데이터베이스">데이터베이스</option>
-            <option value="운영체제">운영체제</option>
-            <option value="네트워크">네트워크</option>
-            <option value="소프트웨어공학">소프트웨어공학</option>
-            <option value="자료구조">자료구조</option>
-            <option value="프로그래밍언어">프로그래밍언어</option>
+            <!-- 동적으로 채워짐 -->
           </select>
         </div>
         <div class="form-group">
@@ -570,14 +566,7 @@ body {
         <div class="form-group">
           <label class="form-label">과목</label>
           <select class="select" id="quizSubject">
-            <option value="컴퓨터일반">컴퓨터일반</option>
-            <option value="정보보호론">정보보호론</option>
-            <option value="데이터베이스">데이터베이스</option>
-            <option value="운영체제">운영체제</option>
-            <option value="네트워크">네트워크</option>
-            <option value="소프트웨어공학">소프트웨어공학</option>
-            <option value="자료구조">자료구조</option>
-            <option value="프로그래밍언어">프로그래밍언어</option>
+            <!-- 동적으로 채워짐 -->
           </select>
         </div>
         <div class="form-group">
@@ -655,6 +644,10 @@ body {
     <h1 class="page-title">취약점 관리</h1>
     <p class="page-desc">오답 분석을 통해 취약한 분야를 파악하고 집중 학습합니다</p>
 
+    <div style="margin-bottom:16px;">
+      <select class="select subject-filter-select" id="weaknessSubjectFilter" onchange="renderWeaknessList()" style="max-width:200px;"></select>
+    </div>
+
     <div class="tabs">
       <div class="tab active" onclick="switchWeaknessTab('list')">취약점 목록</div>
       <div class="tab" onclick="switchWeaknessTab('conceptView')">개념 정리 모아보기</div>
@@ -697,6 +690,10 @@ body {
     <h1 class="page-title">모아보기</h1>
     <p class="page-desc">생성된 개념 정리와 문제를 한곳에서 확인합니다</p>
 
+    <div style="margin-bottom:16px;">
+      <select class="select subject-filter-select" id="collectionSubjectFilter" onchange="refreshCollectionTab()" style="max-width:200px;"></select>
+    </div>
+
     <div class="tabs">
       <div class="tab active" onclick="switchCollectionTab('concepts')">개념 정리</div>
       <div class="tab" onclick="switchCollectionTab('quizzes')">생성된 문제</div>
@@ -726,6 +723,17 @@ body {
   <div class="page" id="page-settings">
     <h1 class="page-title">설정</h1>
     <p class="page-desc">API 키 설정 및 데이터 관리</p>
+    <div class="card">
+      <div class="card-title">📚 과목 관리</div>
+      <p style="font-size:13px; color:var(--c-text-muted); margin-bottom:12px;">
+        과목을 추가하면 모든 페이지에서 자동으로 선택할 수 있습니다.
+      </p>
+      <div id="subjectManagerList"></div>
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <input class="input" type="text" id="newSubjectInput" placeholder="새 과목 이름 입력..." onkeydown="if(event.key==='Enter'){addSubject(this.value);this.value='';}">
+        <button class="btn btn-primary" onclick="addSubject(document.getElementById('newSubjectInput').value); document.getElementById('newSubjectInput').value='';">추가</button>
+      </div>
+    </div>
     <div class="card">
       <div class="card-title">🔑 Gemini API 키</div>
       <div class="api-key-input">
@@ -961,6 +969,7 @@ async function syncToCloud(silent = false) {
   setSyncingUI(true);
   try {
     const data = {
+      subjects: APP_STATE.subjects,
       concepts: APP_STATE.concepts,
       weaknesses: APP_STATE.weaknesses,
       weaknessConcepts: APP_STATE.weaknessConcepts,
@@ -1007,6 +1016,7 @@ async function syncFromCloud(silent = false) {
       if (!confirm('로컬 데이터가 더 최신입니다. 클라우드 데이터로 덮어쓰시겠습니까?')) return;
     }
 
+    if (data.subjects?.length) APP_STATE.subjects = data.subjects;
     if (data.concepts) APP_STATE.concepts = data.concepts;
     if (data.weaknesses) APP_STATE.weaknesses = data.weaknesses;
     if (data.weaknessConcepts) APP_STATE.weaknessConcepts = data.weaknessConcepts;
@@ -1018,6 +1028,8 @@ async function syncFromCloud(silent = false) {
     if (data.uploadCount) localStorage.setItem('upload_count', data.uploadCount);
 
     saveState();
+    refreshAllSubjectSelectors();
+    renderSubjectManager();
     localStorage.setItem('last_sync_time', Date.now().toString());
     if (!silent) showToast('클라우드에서 데이터를 불러왔습니다!', 'success');
   } catch (e) {
@@ -1046,8 +1058,11 @@ function safeParseJSON(key) {
   catch { return null; }
 }
 
+const DEFAULT_SUBJECTS = ['컴퓨터일반', '정보보호론'];
+
 const APP_STATE = {
   apiKey: localStorage.getItem('gemini_api_key') || '',
+  subjects: safeParseArray('subjects').length > 0 ? safeParseArray('subjects') : [...DEFAULT_SUBJECTS],
   uploadedFiles: [],
   analysisData: safeParseJSON('analysis_data'),
   concepts: safeParseArray('concepts'),
@@ -1061,7 +1076,78 @@ const APP_STATE = {
   previousQuestions: safeParseArray('previous_questions')
 };
 
+// ==================== 과목 관리 ====================
+function saveSubjects() {
+  localStorage.setItem('subjects', JSON.stringify(APP_STATE.subjects));
+}
+
+function addSubject(name) {
+  name = name.trim();
+  if (!name) return;
+  if (APP_STATE.subjects.includes(name)) {
+    showToast('이미 존재하는 과목입니다.', 'error');
+    return;
+  }
+  APP_STATE.subjects.push(name);
+  saveSubjects();
+  refreshAllSubjectSelectors();
+  renderSubjectManager();
+  showToast(`"${name}" 과목이 추가되었습니다!`, 'success');
+}
+
+function removeSubject(name) {
+  if (!confirm(`"${name}" 과목을 삭제하시겠습니까?\n(기존 데이터는 유지됩니다)`)) return;
+  APP_STATE.subjects = APP_STATE.subjects.filter(s => s !== name);
+  saveSubjects();
+  refreshAllSubjectSelectors();
+  renderSubjectManager();
+  showToast(`"${name}" 과목이 삭제되었습니다.`, 'info');
+}
+
+function renderSubjectManager() {
+  const container = document.getElementById('subjectManagerList');
+  if (!container) return;
+  container.innerHTML = APP_STATE.subjects.map(s => `
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:var(--c-bkg-body); border:1px solid var(--c-border); border-radius:var(--c-radius); margin-bottom:4px;">
+      <span style="font-weight:600;">${s}</span>
+      <button class="btn btn-sm btn-danger" onclick="removeSubject('${s}')">삭제</button>
+    </div>
+  `).join('');
+}
+
+function buildSubjectOptions(includeAll = false) {
+  let html = includeAll ? '<option value="">전체</option>' : '';
+  APP_STATE.subjects.forEach(s => {
+    html += `<option value="${s}">${s}</option>`;
+  });
+  return html;
+}
+
+function refreshAllSubjectSelectors() {
+  const conceptSelect = document.getElementById('conceptSubject');
+  if (conceptSelect) conceptSelect.innerHTML = buildSubjectOptions(true);
+
+  const quizSelect = document.getElementById('quizSubject');
+  if (quizSelect) quizSelect.innerHTML = buildSubjectOptions(false);
+
+  // 과목별 필터 드롭다운 갱신
+  document.querySelectorAll('.subject-filter-select').forEach(sel => {
+    const currentVal = sel.value;
+    sel.innerHTML = buildSubjectOptions(true);
+    sel.value = currentVal;
+  });
+}
+
+function buildSubjectFilterBar(containerId, onChangeCallback) {
+  return `<div style="margin-bottom:16px;">
+    <select class="select subject-filter-select" onchange="${onChangeCallback}" style="max-width:200px;">
+      ${buildSubjectOptions(true)}
+    </select>
+  </div>`;
+}
+
 function saveState() {
+  localStorage.setItem('subjects', JSON.stringify(APP_STATE.subjects));
   localStorage.setItem('analysis_data', JSON.stringify(APP_STATE.analysisData));
   localStorage.setItem('concepts', JSON.stringify(APP_STATE.concepts));
   localStorage.setItem('weaknesses', JSON.stringify(APP_STATE.weaknesses));
@@ -1944,8 +2030,9 @@ async function saveWrongAnswers() {
   }
 
   // 취약점 업데이트
+  const quizSubject = APP_STATE.currentQuiz?.subject || '기타';
   wrongTopics.forEach(w => {
-    const existing = APP_STATE.weaknesses.find(x => x.topic === w.topic);
+    const existing = APP_STATE.weaknesses.find(x => x.topic === w.topic && x.subject === quizSubject);
     if (existing) {
       existing.count++;
       existing.questions.push(w.question);
@@ -1953,6 +2040,7 @@ async function saveWrongAnswers() {
     } else {
       APP_STATE.weaknesses.push({
         id: generateId(),
+        subject: quizSubject,
         topic: w.topic,
         count: 1,
         questions: [w.question],
@@ -1988,18 +2076,25 @@ function switchWeaknessTab(tab) {
 
 function renderWeaknessList() {
   const container = document.getElementById('weaknessList');
-  if (APP_STATE.weaknesses.length === 0) {
+  const filterSubject = document.getElementById('weaknessSubjectFilter')?.value || '';
+
+  let filtered = APP_STATE.weaknesses;
+  if (filterSubject) {
+    filtered = filtered.filter(w => w.subject === filterSubject);
+  }
+
+  if (filtered.length === 0) {
     container.innerHTML = `<div class="empty-state"><div class="icon">🎯</div><p>아직 기록된 취약점이 없습니다.<br>문제를 풀고 채점하면 자동으로 취약점이 분석됩니다.</p></div>`;
     return;
   }
 
-  const sorted = [...APP_STATE.weaknesses].sort((a, b) => b.count - a.count);
+  const sorted = [...filtered].sort((a, b) => b.count - a.count);
   const maxCount = Math.max(...sorted.map(w => w.count));
 
   container.innerHTML = sorted.map(w => `
     <div class="weakness-item">
       <div class="weakness-header">
-        <div class="weakness-topic">${w.topic}</div>
+        <div class="weakness-topic">${w.topic} <span class="tag tag-info" style="font-size:11px;">${w.subject || '기타'}</span></div>
         <div class="weakness-count">틀린 횟수: ${w.count}회</div>
       </div>
       <div class="weakness-detail">최근: ${new Date(w.lastDate).toLocaleDateString('ko-KR')}</div>
@@ -2068,6 +2163,7 @@ ${weakness.questions.slice(-3).map((q, i) => `${i + 1}. ${q}`).join('\n')}
     const conceptEntry = {
       id: generateId(),
       weaknessId,
+      subject: weakness.subject || '기타',
       topic: weakness.topic,
       content: result,
       createdAt: new Date().toISOString()
@@ -2078,7 +2174,7 @@ ${weakness.questions.slice(-3).map((q, i) => `${i + 1}. ${q}`).join('\n')}
     showToast(`"${weakness.topic}" 개념 정리가 생성되었습니다!`, 'success');
 
     // 새 탭으로 보여주기
-    openConceptViewPage(weakness.topic + ' - 취약점 개념 정리', '취약점', result);
+    openConceptViewPage(weakness.topic + ' - 취약점 개념 정리', weakness.subject || '취약점', result);
 
   } catch (e) {
     showToast('개념 정리 실패: ' + e.message, 'error');
@@ -2138,6 +2234,7 @@ JSON 형식으로만 반환 (마크다운 코드 블록 없이):
     const quizEntry = {
       id: generateId(),
       weaknessId,
+      subject: weakness.subject || '기타',
       topic: weakness.topic,
       questions: quizData.questions,
       createdAt: new Date().toISOString()
@@ -2314,7 +2411,12 @@ function switchCollectionTab(tab) {
 
 function renderCollectionConcepts() {
   const container = document.getElementById('collectionConcepts');
-  const allConcepts = [...APP_STATE.concepts, ...APP_STATE.weaknessConcepts.map(c => ({...c, subject: '취약점', keyword: c.topic}))];
+  const filterSubject = document.getElementById('collectionSubjectFilter')?.value || '';
+  let allConcepts = [...APP_STATE.concepts, ...APP_STATE.weaknessConcepts.map(c => ({...c, subject: c.subject || '기타', keyword: c.topic}))];
+
+  if (filterSubject) {
+    allConcepts = allConcepts.filter(c => c.subject === filterSubject);
+  }
 
   if (allConcepts.length === 0) {
     container.innerHTML = `<div class="empty-state"><div class="icon">📖</div><p>생성된 개념 정리가 없습니다.</p></div>`;
@@ -2325,7 +2427,7 @@ function renderCollectionConcepts() {
     <div class="collection-card" onclick="showCollectionConcept('${c.id}', '${c.weaknessId ? 'weakness' : 'general'}')">
       <div class="collection-card-title">
         ${c.keyword || c.topic}
-        <span class="tag ${c.weaknessId ? 'tag-danger' : 'tag-info'}" style="margin-left:8px;">${c.subject || '취약점'}</span>
+        <span class="tag ${c.weaknessId ? 'tag-danger' : 'tag-info'}" style="margin-left:8px;">${c.subject || '기타'}</span>
       </div>
       <div class="collection-card-meta">${new Date(c.createdAt).toLocaleDateString('ko-KR')}</div>
       <div class="collection-card-preview">${(c.content || '').substring(0, 150)}...</div>
@@ -2343,7 +2445,12 @@ function showCollectionConcept(id, type) {
 
 function renderCollectionQuizzes() {
   const container = document.getElementById('collectionQuizzes');
-  const allQuizzes = [...APP_STATE.generatedQuizzes, ...APP_STATE.weaknessQuizzes.map(q => ({...q, subject: '취약점 기반'}))];
+  const filterSubject = document.getElementById('collectionSubjectFilter')?.value || '';
+  let allQuizzes = [...APP_STATE.generatedQuizzes, ...APP_STATE.weaknessQuizzes.map(q => ({...q, subject: q.subject || '기타'}))];
+
+  if (filterSubject) {
+    allQuizzes = allQuizzes.filter(q => q.subject === filterSubject);
+  }
 
   if (allQuizzes.length === 0) {
     container.innerHTML = `<div class="empty-state"><div class="icon">✏️</div><p>생성된 문제가 없습니다.</p></div>`;
@@ -2367,14 +2474,27 @@ function renderCollectionQuizzes() {
   `).join('')}</div>`;
 }
 
+function refreshCollectionTab() {
+  const activeTab = document.querySelector('#page-collection .tab-content.active');
+  if (activeTab?.id === 'collectionTab-concepts') renderCollectionConcepts();
+  else if (activeTab?.id === 'collectionTab-quizzes') renderCollectionQuizzes();
+  else if (activeTab?.id === 'collectionTab-history') renderCollectionHistory();
+}
+
 function renderCollectionHistory() {
   const container = document.getElementById('collectionHistory');
-  if (APP_STATE.quizHistory.length === 0) {
+  const filterSubject = document.getElementById('collectionSubjectFilter')?.value || '';
+  let history = APP_STATE.quizHistory;
+  if (filterSubject) {
+    history = history.filter(h => h.subject === filterSubject);
+  }
+
+  if (history.length === 0) {
     container.innerHTML = `<div class="empty-state"><div class="icon">📊</div><p>학습 기록이 없습니다.</p></div>`;
     return;
   }
 
-  container.innerHTML = APP_STATE.quizHistory.slice().reverse().map(h => `
+  container.innerHTML = history.slice().reverse().map(h => `
     <div class="card" style="margin-bottom:12px;">
       <div style="display:flex; justify-content:space-between; align-items:center;">
         <div>
@@ -2404,6 +2524,42 @@ function updateDashboard() {
 
   document.getElementById('statWeakness').textContent = APP_STATE.weaknesses.length;
   updateWeaknessBadge();
+
+  // 과목별 통계
+  const subjectStatsContainer = document.getElementById('subjectStats');
+  if (subjectStatsContainer) {
+    if (APP_STATE.quizHistory.length === 0) {
+      subjectStatsContainer.innerHTML = `<div style="font-size:13px; color:var(--c-text-muted);">문제를 풀면 과목별 통계가 표시됩니다.</div>`;
+    } else {
+      const subjectMap = {};
+      APP_STATE.quizHistory.forEach(h => {
+        const s = h.subject || '기타';
+        if (!subjectMap[s]) subjectMap[s] = { total: 0, correct: 0, count: 0, weaknesses: 0 };
+        subjectMap[s].total += h.total;
+        subjectMap[s].correct += h.correct;
+        subjectMap[s].count++;
+      });
+      APP_STATE.weaknesses.forEach(w => {
+        const s = w.subject || '기타';
+        if (!subjectMap[s]) subjectMap[s] = { total: 0, correct: 0, count: 0, weaknesses: 0 };
+        subjectMap[s].weaknesses++;
+      });
+
+      subjectStatsContainer.innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px;">` +
+        Object.entries(subjectMap).map(([subject, stats]) => {
+          const rate = stats.total > 0 ? Math.round(stats.correct / stats.total * 100) : 0;
+          const color = rate >= 80 ? '#22c55e' : rate >= 60 ? '#f59e0b' : '#ef4444';
+          return `<div style="background:var(--c-bkg-body); border:1px solid var(--c-border); border-radius:var(--c-radius-lg); padding:16px;">
+            <div style="font-weight:700; color:var(--c-primary); margin-bottom:8px;">${subject}</div>
+            <div style="font-size:24px; font-weight:800; color:${color};">${rate}%</div>
+            <div style="font-size:12px; color:var(--c-text-muted); margin-top:4px;">
+              ${stats.correct}/${stats.total} 정답 · ${stats.count}회 응시
+              ${stats.weaknesses > 0 ? ` · 취약점 ${stats.weaknesses}개` : ''}
+            </div>
+          </div>`;
+        }).join('') + `</div>`;
+    }
+  }
 
   // 최근 기록
   const recentContainer = document.getElementById('recentHistory');
@@ -2449,6 +2605,7 @@ function toggleApiKey() {
 
 function exportData() {
   const data = {
+    subjects: APP_STATE.subjects,
     concepts: APP_STATE.concepts,
     weaknesses: APP_STATE.weaknesses,
     weaknessConcepts: APP_STATE.weaknessConcepts,
@@ -2472,6 +2629,7 @@ function importData(file) {
   reader.onload = (e) => {
     try {
       const data = JSON.parse(e.target.result);
+      if (data.subjects?.length) APP_STATE.subjects = data.subjects;
       if (data.concepts) APP_STATE.concepts = data.concepts;
       if (data.weaknesses) APP_STATE.weaknesses = data.weaknesses;
       if (data.weaknessConcepts) APP_STATE.weaknessConcepts = data.weaknessConcepts;
@@ -2481,6 +2639,8 @@ function importData(file) {
       if (data.analysisData) APP_STATE.analysisData = data.analysisData;
       if (data.previousQuestions) APP_STATE.previousQuestions = data.previousQuestions;
       saveState();
+      refreshAllSubjectSelectors();
+      renderSubjectManager();
       updateDashboard();
       showToast('데이터를 가져왔습니다!', 'success');
     } catch {
@@ -2513,6 +2673,11 @@ document.addEventListener('DOMContentLoaded', () => {
   if (APP_STATE.apiKey) {
     document.getElementById('apiKeyInput').value = APP_STATE.apiKey;
   }
+
+  // 과목 셀렉터 초기화
+  refreshAllSubjectSelectors();
+  renderSubjectManager();
+
   updateDashboard();
   renderSavedConcepts();
 
