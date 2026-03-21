@@ -528,8 +528,14 @@ body {
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">과목 선택</label>
-          <select class="select" id="conceptSubject">
+          <select class="select" id="conceptSubject" onchange="refreshSubTopicSelector('conceptSubject','conceptSubTopic')">
             <!-- 동적으로 채워짐 -->
+          </select>
+        </div>
+        <div class="form-group" style="display:none;">
+          <label class="form-label">세부과목</label>
+          <select class="select" id="conceptSubTopic">
+            <option value="">전체</option>
           </select>
         </div>
         <div class="form-group">
@@ -565,8 +571,14 @@ body {
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">과목</label>
-          <select class="select" id="quizSubject">
+          <select class="select" id="quizSubject" onchange="refreshSubTopicSelector('quizSubject','quizSubTopic')">
             <!-- 동적으로 채워짐 -->
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">세부과목</label>
+          <select class="select" id="quizSubTopic">
+            <option value="">전체</option>
           </select>
         </div>
         <div class="form-group">
@@ -733,6 +745,13 @@ body {
         <input class="input" type="text" id="newSubjectInput" placeholder="새 과목 이름 입력..." onkeydown="if(event.key==='Enter'){addSubject(this.value);this.value='';}">
         <button class="btn btn-primary" onclick="addSubject(document.getElementById('newSubjectInput').value); document.getElementById('newSubjectInput').value='';">추가</button>
       </div>
+    </div>
+    <div class="card">
+      <div class="card-title">📋 세부과목 관리</div>
+      <p style="font-size:13px; color:var(--c-text-muted); margin-bottom:12px;">
+        PDF 분석 시 자동으로 세부과목이 추가됩니다. 직접 추가/삭제도 가능합니다.
+      </p>
+      <div id="subTopicManagerList"></div>
     </div>
     <div class="card">
       <div class="card-title">🔑 Gemini API 키</div>
@@ -970,6 +989,7 @@ async function syncToCloud(silent = false) {
   try {
     const data = {
       subjects: APP_STATE.subjects,
+      subTopics: APP_STATE.subTopics,
       concepts: APP_STATE.concepts,
       weaknesses: APP_STATE.weaknesses,
       weaknessConcepts: APP_STATE.weaknessConcepts,
@@ -1017,6 +1037,7 @@ async function syncFromCloud(silent = false) {
     }
 
     if (data.subjects?.length) APP_STATE.subjects = data.subjects;
+    if (data.subTopics) APP_STATE.subTopics = data.subTopics;
     if (data.concepts) APP_STATE.concepts = data.concepts;
     if (data.weaknesses) APP_STATE.weaknesses = data.weaknesses;
     if (data.weaknessConcepts) APP_STATE.weaknessConcepts = data.weaknessConcepts;
@@ -1063,6 +1084,7 @@ const DEFAULT_SUBJECTS = ['컴퓨터일반', '정보보호론'];
 const APP_STATE = {
   apiKey: localStorage.getItem('gemini_api_key') || '',
   subjects: safeParseArray('subjects').length > 0 ? safeParseArray('subjects') : [...DEFAULT_SUBJECTS],
+  subTopics: safeParseJSON('sub_topics') || {},  // { "정보보호론": ["암호학", "네트워크보안", ...] }
   uploadedFiles: [],
   analysisData: safeParseJSON('analysis_data'),
   concepts: safeParseArray('concepts'),
@@ -1146,8 +1168,81 @@ function buildSubjectFilterBar(containerId, onChangeCallback) {
   </div>`;
 }
 
+// ==================== 세부과목 관리 ====================
+function getSubTopics(subject) {
+  return APP_STATE.subTopics[subject] || [];
+}
+
+function buildSubTopicOptions(subject) {
+  const subs = getSubTopics(subject);
+  let html = '<option value="">전체</option>';
+  subs.forEach(s => { html += `<option value="${s}">${s}</option>`; });
+  return html;
+}
+
+function refreshSubTopicSelector(subjectSelectId, subTopicSelectId) {
+  const subjectEl = document.getElementById(subjectSelectId);
+  const subTopicEl = document.getElementById(subTopicSelectId);
+  if (!subjectEl || !subTopicEl) return;
+  const subject = subjectEl.value;
+  subTopicEl.innerHTML = buildSubTopicOptions(subject);
+  subTopicEl.closest('.form-group').style.display = subject ? '' : 'none';
+}
+
+function renderSubTopicManager() {
+  const container = document.getElementById('subTopicManagerList');
+  if (!container) return;
+  if (Object.keys(APP_STATE.subTopics).length === 0) {
+    container.innerHTML = '<div style="font-size:13px; color:var(--c-text-muted);">PDF를 업로드하고 분석하면 세부과목이 자동으로 추가됩니다.</div>';
+    return;
+  }
+  let html = '';
+  for (const [subject, topics] of Object.entries(APP_STATE.subTopics)) {
+    if (!APP_STATE.subjects.includes(subject)) continue;
+    html += `<div style="margin-bottom:12px;">
+      <div style="font-weight:700; color:var(--c-primary); margin-bottom:6px;">${subject}</div>
+      <div style="display:flex; flex-wrap:wrap; gap:6px;">
+        ${topics.map(t => `
+          <span style="display:inline-flex; align-items:center; gap:4px; padding:4px 10px; background:var(--c-bkg-body); border:1px solid var(--c-border); border-radius:20px; font-size:12px;">
+            ${t}
+            <button onclick="removeSubTopic('${subject}', '${t}')" style="background:none; border:none; color:var(--c-danger); cursor:pointer; font-size:14px; padding:0 2px;">&times;</button>
+          </span>
+        `).join('')}
+      </div>
+      <div style="display:flex; gap:6px; margin-top:6px;">
+        <input class="input" type="text" placeholder="세부과목 직접 추가..." id="addSubTopic_${subject}" style="flex:1; font-size:12px; padding:6px 10px;" onkeydown="if(event.key==='Enter'){addSubTopicManual('${subject}', this.value);this.value='';}">
+        <button class="btn btn-sm btn-secondary" onclick="addSubTopicManual('${subject}', document.getElementById('addSubTopic_${subject}').value); document.getElementById('addSubTopic_${subject}').value='';">추가</button>
+      </div>
+    </div>`;
+  }
+  container.innerHTML = html;
+}
+
+function addSubTopicManual(subject, topic) {
+  topic = topic.trim();
+  if (!topic) return;
+  if (!APP_STATE.subTopics[subject]) APP_STATE.subTopics[subject] = [];
+  if (APP_STATE.subTopics[subject].includes(topic)) {
+    showToast('이미 존재하는 세부과목입니다.', 'error');
+    return;
+  }
+  APP_STATE.subTopics[subject].push(topic);
+  saveState();
+  renderSubTopicManager();
+  showToast(`"${topic}" 세부과목이 추가되었습니다.`, 'success');
+}
+
+function removeSubTopic(subject, topic) {
+  if (!APP_STATE.subTopics[subject]) return;
+  APP_STATE.subTopics[subject] = APP_STATE.subTopics[subject].filter(t => t !== topic);
+  saveState();
+  renderSubTopicManager();
+  showToast(`"${topic}" 세부과목이 삭제되었습니다.`, 'info');
+}
+
 function saveState() {
   localStorage.setItem('subjects', JSON.stringify(APP_STATE.subjects));
+  localStorage.setItem('sub_topics', JSON.stringify(APP_STATE.subTopics));
   localStorage.setItem('analysis_data', JSON.stringify(APP_STATE.analysisData));
   localStorage.setItem('concepts', JSON.stringify(APP_STATE.concepts));
   localStorage.setItem('weaknesses', JSON.stringify(APP_STATE.weaknesses));
@@ -1455,6 +1550,34 @@ async function analyzeFiles() {
     }
 
     APP_STATE.analysisData = analysisData;
+
+    // 분석 결과에서 세부과목 자동 추출
+    if (analysisData.categories?.length) {
+      let addedCount = 0;
+      analysisData.categories.forEach(cat => {
+        const subject = cat.subject;
+        // 과목 목록에 없으면 자동 추가
+        if (subject && !APP_STATE.subjects.includes(subject)) {
+          APP_STATE.subjects.push(subject);
+        }
+        if (subject && cat.topics?.length) {
+          if (!APP_STATE.subTopics[subject]) APP_STATE.subTopics[subject] = [];
+          cat.topics.forEach(t => {
+            const topicName = t.name;
+            if (topicName && !APP_STATE.subTopics[subject].includes(topicName)) {
+              APP_STATE.subTopics[subject].push(topicName);
+              addedCount++;
+            }
+          });
+        }
+      });
+      if (addedCount > 0) {
+        refreshAllSubjectSelectors();
+        renderSubjectManager();
+        renderSubTopicManager();
+      }
+    }
+
     saveState();
     progressFill.style.width = '100%';
 
@@ -1540,6 +1663,7 @@ function renderAnalysisResult(data) {
 // ==================== 개념 정리 ====================
 async function generateConcept() {
   const subject = document.getElementById('conceptSubject').value;
+  const subTopic = document.getElementById('conceptSubTopic').value;
   const keyword = document.getElementById('conceptKeyword').value;
 
   if (!subject && !keyword) {
@@ -1550,16 +1674,21 @@ async function generateConcept() {
   const loading = document.getElementById('conceptLoading');
   loading.classList.add('show');
 
+  const topicLabel = subTopic || keyword || subject;
+  const subTopicInstruction = subTopic
+    ? `\n세부 분야: ${subTopic}\n이 세부 분야에 대해 깊이 있고 상세하게 다뤄주세요. 해당 분야의 모든 핵심 개념, 세부 항목, 관련 기술을 빠짐없이 정리해주세요.`
+    : (keyword ? '' : '\n이 과목의 전반적인 핵심 내용을 개괄적으로 정리해주세요.');
+
   try {
     const prompt = `당신은 한국 9급 공무원 전산직 시험 전문 강사입니다.
 
 다음 주제에 대해 시험 대비용 개념 정리를 해주세요:
-${subject ? `과목: ${subject}` : ''}
+${subject ? `과목: ${subject}` : ''}${subTopicInstruction}
 ${keyword ? `키워드/주제: ${keyword}` : ''}
 
 다음 형식으로 작성해주세요:
 
-# ${subject || keyword} 개념 정리
+# ${topicLabel} 개념 정리
 
 ## 1. 핵심 개념
 
@@ -1567,6 +1696,7 @@ ${keyword ? `키워드/주제: ${keyword}` : ''}
 - 정의와 특징을 정확히 기술
 - 관련 용어 설명
 - 실제 시험에서 출제되는 포인트 강조
+${subTopic ? `- "${subTopic}" 분야의 모든 세부 항목을 빠짐없이 다루세요` : ''}
 
 ## 2. 핵심 비교/구분
 
@@ -1586,14 +1716,16 @@ ${keyword ? `키워드/주제: ${keyword}` : ''}
 - 각 섹션 사이에 빈 줄을 넣어 가독성을 높여주세요
 - 줄바꿈을 충분히 사용하여 내용을 구분해주세요
 - 볼드(**), 리스트(-), 코드(\`\`)를 적극 활용하세요
-- 표가 필요한 경우 마크다운 표를 사용하세요`;
+- 표가 필요한 경우 마크다운 표를 사용하세요
+- 내용을 최대한 상세하고 깊이 있게 작성하세요`;
 
     const result = await callGemini(prompt);
 
     const concept = {
       id: generateId(),
       subject: subject || '기타',
-      keyword: keyword || subject,
+      subTopic: subTopic || '',
+      keyword: keyword || subTopic || subject,
       content: result,
       createdAt: new Date().toISOString(),
       type: 'general'
@@ -1779,7 +1911,7 @@ function renderSavedConcepts() {
         <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:var(--c-bkg-body); border:1px solid var(--c-border); border-radius:var(--c-radius); margin-bottom:6px; cursor:pointer; transition:all 0.2s;" onmouseenter="this.style.borderColor='var(--c-primary)'" onmouseleave="this.style.borderColor='var(--c-border)'" onclick="expandConcept('${c.id}')">
           <div style="flex:1; min-width:0;">
             <div style="font-size:14px; font-weight:600; color:var(--c-text-base); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${c.keyword}</div>
-            <div style="font-size:11px; color:var(--c-text-light); margin-top:2px;">${new Date(c.createdAt).toLocaleDateString('ko-KR')} · ${c.type === 'analysis' ? '기출분석 기반' : '직접 생성'}</div>
+            <div style="font-size:11px; color:var(--c-text-light); margin-top:2px;">${new Date(c.createdAt).toLocaleDateString('ko-KR')} · ${c.subTopic ? c.subTopic + ' · ' : ''}${c.type === 'analysis' ? '기출분석 기반' : '직접 생성'}</div>
           </div>
           <div style="display:flex; gap:6px; flex-shrink:0; margin-left:12px;">
             <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); expandConcept('${c.id}')">보기</button>
@@ -1796,6 +1928,7 @@ function renderSavedConcepts() {
 // ==================== 문제 생성/풀기 ====================
 async function generateQuiz(weaknessTopic = null) {
   const subject = weaknessTopic ? null : document.getElementById('quizSubject').value;
+  const subTopic = weaknessTopic ? null : (document.getElementById('quizSubTopic')?.value || '');
   const count = parseInt(document.getElementById('quizCount').value);
   const difficulty = document.getElementById('quizDifficulty').value;
   const randomness = parseInt(document.getElementById('quizRandomness').value);
@@ -1822,10 +1955,12 @@ async function generateQuiz(weaknessTopic = null) {
     : `난이도: ${difficulty}`;
 
   try {
+    const subTopicInstr = subTopic ? `\n세부 분야: ${subTopic}\n이 세부 분야에 집중하여 관련 문제만 출제하세요.` : '';
+
     const prompt = `당신은 한국 9급 공무원 전산직 시험 출제위원입니다.
 
 다음 조건으로 ${count}개의 4지선다 문제를 생성해주세요:
-${subject ? `과목: ${subject}` : ''}
+${subject ? `과목: ${subject}` : ''}${subTopicInstr}
 ${topic ? `주제/분야: ${topic}` : ''}
 ${difficultyInstr}
 랜덤성 수준: ${randomness}/5 - ${randomInstructions[randomness]}
@@ -2606,6 +2741,7 @@ function toggleApiKey() {
 function exportData() {
   const data = {
     subjects: APP_STATE.subjects,
+    subTopics: APP_STATE.subTopics,
     concepts: APP_STATE.concepts,
     weaknesses: APP_STATE.weaknesses,
     weaknessConcepts: APP_STATE.weaknessConcepts,
@@ -2630,6 +2766,7 @@ function importData(file) {
     try {
       const data = JSON.parse(e.target.result);
       if (data.subjects?.length) APP_STATE.subjects = data.subjects;
+      if (data.subTopics) APP_STATE.subTopics = data.subTopics;
       if (data.concepts) APP_STATE.concepts = data.concepts;
       if (data.weaknesses) APP_STATE.weaknesses = data.weaknesses;
       if (data.weaknessConcepts) APP_STATE.weaknessConcepts = data.weaknessConcepts;
@@ -2677,6 +2814,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 과목 셀렉터 초기화
   refreshAllSubjectSelectors();
   renderSubjectManager();
+  renderSubTopicManager();
 
   updateDashboard();
   renderSavedConcepts();
