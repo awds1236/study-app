@@ -429,6 +429,14 @@ body {
     box-shadow: 0 -2px 12px rgba(0,0,0,0.3);
   }
   .sidebar-header { display: none; }
+  .mobile-mode-bar {
+    display: flex !important; position: fixed; top: 0; left: 0; right: 0;
+    z-index: 201; background: var(--c-bkg-sidebar); border-bottom: 1px solid var(--c-border);
+    padding: 6px 12px; gap: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  .mobile-mode-bar .mode-btn { padding: 8px 12px; font-size: 13px; }
+  .mode-toggle { display: none !important; }
   .nav-menu {
     display: flex; flex-direction: row; width: 100%;
     padding: 0; overflow-x: auto; overflow-y: hidden;
@@ -453,7 +461,7 @@ body {
   .sidebar > div:last-child { display: none; }
   .main {
     margin-left: 0 !important; padding: 16px 12px;
-    padding-bottom: 80px;
+    padding-top: 52px; padding-bottom: 80px;
   }
   .page-title { font-size: 20px; }
   .page-desc { font-size: 13px; margin-bottom: 16px; }
@@ -502,9 +510,35 @@ body {
 .empty-state { text-align: center; padding: 60px 20px; color: var(--c-text-light); }
 .empty-state .icon { font-size: 56px; margin-bottom: 16px; opacity: 0.6; }
 .empty-state p { font-size: 14px; line-height: 1.7; }
+
+/* ===== 모드 토글 ===== */
+.mode-toggle {
+  display: flex; gap: 4px; padding: 8px 12px 12px; background: var(--c-bkg-sidebar);
+}
+.mode-btn {
+  flex: 1; padding: 9px 6px; border: 1px solid var(--c-border); background: transparent;
+  color: var(--c-text-muted); border-radius: var(--c-radius); cursor: pointer;
+  font-size: 12px; font-weight: 500; transition: all 0.25s; text-align: center;
+  white-space: nowrap;
+}
+.mode-btn:hover { background: var(--c-bkg-hover); color: var(--c-text-base); }
+.mode-btn.active {
+  background: var(--c-primary-bg); color: var(--c-primary);
+  border-color: var(--c-primary); font-weight: 700;
+}
+
+/* 모드별 표시/숨김 */
+body.mode-cs .exam-only { display: none !important; }
+body.mode-exam .cs-only { display: none !important; }
 </style>
 </head>
 <body>
+
+<!-- 모바일 상단 모드 바 -->
+<div class="mobile-mode-bar" style="display:none;">
+  <button class="mode-btn active" onclick="switchMode('exam')">📄 기출 분석</button>
+  <button class="mode-btn" onclick="switchMode('cs')">💻 전산학 학습</button>
+</div>
 
 <!-- 사이드바 -->
 <div class="sidebar">
@@ -512,11 +546,15 @@ body {
     📚 전산직 도우미
     <small>9급 공무원 전산직 시험 대비</small>
   </div>
+  <div class="mode-toggle">
+    <button class="mode-btn active" onclick="switchMode('exam')">📄 기출 분석</button>
+    <button class="mode-btn" onclick="switchMode('cs')">💻 전산학 학습</button>
+  </div>
   <div class="nav-menu">
     <div class="nav-item active" onclick="showPage('home')">
-      <span class="icon">🏠</span><span>홈 / 대시보드</span>
+      <span class="icon">🏠</span><span>홈</span>
     </div>
-    <div class="nav-item" onclick="showPage('upload')">
+    <div class="nav-item exam-only" onclick="showPage('upload')">
       <span class="icon">📄</span><span>문제 업로드</span>
     </div>
     <div class="nav-item" onclick="showPage('concepts')">
@@ -555,9 +593,13 @@ body {
     <h1 class="page-title">대시보드</h1>
     <p class="page-desc">학습 현황을 한눈에 확인하세요</p>
     <div class="stats-grid">
-      <div class="stat-card">
+      <div class="stat-card exam-only">
         <div class="stat-value" id="statUploaded">0</div>
         <div class="stat-label">업로드된 문제 파일</div>
+      </div>
+      <div class="stat-card cs-only">
+        <div class="stat-value" id="statCsConcepts">0</div>
+        <div class="stat-label">생성된 개념 정리</div>
       </div>
       <div class="stat-card">
         <div class="stat-value" id="statSolved">0</div>
@@ -575,7 +617,8 @@ body {
     <div class="card">
       <div class="card-title">📌 빠른 시작</div>
       <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-        <button class="btn btn-primary" onclick="showPage('upload')">📄 문제 업로드</button>
+        <button class="btn btn-primary exam-only" onclick="showPage('upload')">📄 문제 업로드</button>
+        <button class="btn btn-primary cs-only" onclick="showPage('concepts')">📖 개념 정리</button>
         <button class="btn btn-success" onclick="showPage('quiz')">✏️ 문제 풀기</button>
         <button class="btn btn-warning" onclick="showPage('weakness')">🎯 취약점 학습</button>
       </div>
@@ -629,7 +672,8 @@ body {
   <!-- ===== 개념 정리 ===== -->
   <div class="page" id="page-concepts">
     <h1 class="page-title">개념 정리</h1>
-    <p class="page-desc">전산학 과목별 핵심 개념을 정리합니다 (파일 업로드 불필요)</p>
+    <p class="page-desc exam-only">분석된 문제 유형별 핵심 개념을 정리합니다</p>
+    <p class="page-desc cs-only">전산학 과목별 핵심 개념을 정리합니다 (파일 업로드 불필요)</p>
 
     <div class="card">
       <div class="form-row">
@@ -651,7 +695,7 @@ body {
       </div>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
         <button class="btn btn-primary" onclick="generateConcept()">📖 개념 정리 생성</button>
-        <button class="btn btn-secondary" onclick="generateConceptFromAnalysis()">📊 분석 결과 기반 정리</button>
+        <button class="btn btn-secondary exam-only" onclick="generateConceptFromAnalysis()">📊 분석 결과 기반 정리</button>
       </div>
     </div>
 
@@ -729,7 +773,7 @@ body {
       </div>
       <div style="display: flex; gap: 12px; flex-wrap: wrap;">
         <button class="btn btn-primary" onclick="generateQuiz()">✏️ 문제 생성</button>
-        <button class="btn btn-warning" onclick="generateWeaknessQuiz()">🎯 취약점 기반 문제 생성</button>
+        <button class="btn btn-warning exam-only" onclick="generateWeaknessQuiz()">🎯 취약점 기반 문제 생성</button>
       </div>
     </div>
 
@@ -1507,14 +1551,50 @@ function showToast(msg, type = 'info') {
 }
 
 function showPage(id) {
+  // CS 모드에서 upload 페이지 접근 시 concepts로 리다이렉트
+  if (id === 'upload' && document.body.classList.contains('mode-cs')) {
+    id = 'concepts';
+  }
+
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
-  const navItems = document.querySelectorAll('.nav-item');
+
+  // 보이는 nav-item 중에서 active 설정
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const allNavItems = document.querySelectorAll('.nav-item');
   const pages = ['home', 'upload', 'concepts', 'quiz', 'weakness', 'collection', 'settings'];
   const idx = pages.indexOf(id);
-  if (idx >= 0) navItems[idx].classList.add('active');
+  if (idx >= 0) allNavItems[idx].classList.add('active');
   window.scrollTo(0, 0);
+}
+
+function switchMode(mode) {
+  document.body.classList.remove('mode-exam', 'mode-cs');
+  document.body.classList.add('mode-' + mode);
+  localStorage.setItem('study_mode', mode);
+
+  // 모든 mode-btn 업데이트 (사이드바 + 모바일 상단 바)
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.includes(mode === 'exam' ? '기출' : '전산학'));
+  });
+
+  // 대시보드 제목 변경
+  const pageTitle = document.querySelector('#page-home .page-title');
+  if (pageTitle) pageTitle.textContent = mode === 'cs' ? '전산학 학습 대시보드' : '대시보드';
+
+  // CS 모드에서 upload 페이지에 있었다면 home으로 이동
+  const currentPage = document.querySelector('.page.active');
+  if (currentPage && currentPage.id === 'page-upload' && mode === 'cs') {
+    showPage('home');
+  }
+
+  // 대시보드 통계 업데이트
+  updateDashboardStats();
+}
+
+function updateDashboardStats() {
+  const statCsConcepts = document.getElementById('statCsConcepts');
+  if (statCsConcepts) statCsConcepts.textContent = APP_STATE.concepts.length;
 }
 
 function closeModal(id) {
@@ -3318,6 +3398,7 @@ function renderCollectionHistory() {
 // ==================== 대시보드 ====================
 function updateDashboard() {
   document.getElementById('statUploaded').textContent = localStorage.getItem('upload_count') || '0';
+  updateDashboardStats();
 
   const totalSolved = APP_STATE.quizHistory.reduce((sum, h) => sum + h.total, 0);
   document.getElementById('statSolved').textContent = totalSolved;
@@ -3478,6 +3559,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // 테마 초기화
   const savedTheme = localStorage.getItem('theme') || 'dark';
   setTheme(savedTheme);
+
+  // 모드 초기화
+  const savedMode = localStorage.getItem('study_mode') || 'exam';
+  switchMode(savedMode);
 
   if (APP_STATE.apiKey) {
     document.getElementById('apiKeyInput').value = APP_STATE.apiKey;
