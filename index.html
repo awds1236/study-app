@@ -9,7 +9,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <style>
-/* ===== Adminator Dark Theme ===== */
+/* ===== Theme Variables ===== */
 :root {
   --c-bkg-body: #0f172a;
   --c-bkg-card: #1e293b;
@@ -27,9 +27,32 @@
   --c-warning: #fbbf24;
   --c-danger: #f87171;
   --c-info: #38bdf8;
+  --c-accent: #6ee7b7;
+  --c-accent-bg: rgba(110,231,183,0.10);
   --c-radius: 6px;
   --c-radius-lg: 10px;
   --sidebar-w: 250px;
+}
+
+[data-theme="light"] {
+  --c-bkg-body: #f8fafc;
+  --c-bkg-card: #ffffff;
+  --c-bkg-sidebar: #ffffff;
+  --c-bkg-hover: #f1f5f9;
+  --c-text-base: #1e293b;
+  --c-text-muted: #64748b;
+  --c-text-light: #94a3b8;
+  --c-border: #e2e8f0;
+  --c-border-light: #cbd5e1;
+  --c-primary: #6366f1;
+  --c-primary-hover: #4f46e5;
+  --c-primary-bg: rgba(99,102,241,0.08);
+  --c-success: #10b981;
+  --c-warning: #f59e0b;
+  --c-danger: #ef4444;
+  --c-info: #0ea5e9;
+  --c-accent: #059669;
+  --c-accent-bg: rgba(5,150,105,0.08);
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -39,7 +62,7 @@ body {
   min-height: 100vh; font-size: 14px; line-height: 1.6;
 }
 
-/* ===== 사이드바 (Adminator style) ===== */
+/* ===== 사이드바 ===== */
 .sidebar {
   position: fixed; left: 0; top: 0; bottom: 0; width: var(--sidebar-w);
   background: var(--c-bkg-sidebar); border-right: 1px solid var(--c-border);
@@ -89,7 +112,7 @@ body {
 }
 .page-desc { color: var(--c-text-muted); margin-bottom: 24px; font-size: 14px; }
 
-/* ===== 카드 (Adminator rounded card) ===== */
+/* ===== 카드 ===== */
 .card {
   background: var(--c-bkg-card); border: 1px solid var(--c-border);
   border-radius: var(--c-radius-lg); padding: 24px; margin-bottom: 20px;
@@ -102,7 +125,7 @@ body {
   color: var(--c-text-base); display: flex; align-items: center; gap: 8px;
 }
 
-/* ===== 버튼 (Adminator pill buttons) ===== */
+/* ===== 버튼 ===== */
 .btn {
   padding: 8px 18px; border: none; border-radius: var(--c-radius);
   font-size: 13px; font-weight: 600; cursor: pointer;
@@ -122,7 +145,7 @@ body {
 .btn-warning:hover { background: #f59e0b; box-shadow: 0 4px 12px rgba(251,191,36,0.3); }
 .btn-sm { padding: 5px 12px; font-size: 12px; }
 
-/* ===== 인풋 (Adminator form controls) ===== */
+/* ===== 인풋 ===== */
 .input, .select, .textarea {
   background: var(--c-bkg-body); border: 1px solid var(--c-border);
   border-radius: var(--c-radius); padding: 9px 14px;
@@ -177,7 +200,7 @@ body {
 .progress-bar { background: var(--c-border); border-radius: var(--c-radius); height: 6px; overflow: hidden; margin: 12px 0; }
 .progress-fill { height: 100%; background: linear-gradient(90deg, var(--c-primary), #a78bfa); border-radius: var(--c-radius); transition: width 0.5s; }
 
-/* ===== 탭 (Adminator underline tabs) ===== */
+/* ===== 탭 ===== */
 .tabs { display: flex; gap: 0; margin-bottom: 20px; border-bottom: 2px solid var(--c-border); }
 .tab {
   padding: 10px 20px; cursor: pointer; color: var(--c-text-muted);
@@ -235,7 +258,7 @@ body {
 .result-score { font-size: 64px; font-weight: 800; color: var(--c-primary); }
 .result-label { font-size: 16px; color: var(--c-text-muted); margin-top: 8px; }
 
-/* ===== 개념 정리 (improved line breaks) ===== */
+/* ===== 개념 정리 ===== */
 .concept-content {
   line-height: 1.9; font-size: 14px; color: var(--c-text-base);
   white-space: pre-wrap; word-break: keep-all;
@@ -247,11 +270,12 @@ body {
 .concept-content h1 { font-size: 20px; border-bottom: 2px solid var(--c-border); padding-bottom: 10px; }
 .concept-content h2 { font-size: 17px; }
 .concept-content h3 { font-size: 15px; color: #a5b4fc; }
+[data-theme="light"] .concept-content h3 { color: #4f46e5; }
 .concept-content ul, .concept-content ol { padding-left: 24px; margin: 10px 0; }
 .concept-content li { margin-bottom: 8px; line-height: 1.8; }
 .concept-content code {
   background: var(--c-bkg-hover); padding: 2px 7px; border-radius: 4px;
-  font-family: 'Consolas', 'Fira Code', monospace; font-size: 13px; color: var(--c-warning);
+  font-family: 'Consolas', 'Fira Code', monospace; font-size: 13px; color: var(--c-accent);
 }
 .concept-content pre {
   background: var(--c-bkg-body); padding: 16px; border-radius: var(--c-radius);
@@ -259,7 +283,7 @@ body {
 }
 .concept-content pre code { background: none; padding: 0; }
 .concept-content p { margin-bottom: 14px; }
-.concept-content strong { color: var(--c-warning); }
+.concept-content strong { color: var(--c-accent); }
 .concept-content table { width: 100%; border-collapse: collapse; margin: 14px 0; }
 .concept-content th, .concept-content td {
   border: 1px solid var(--c-border); padding: 10px 14px; text-align: left;
@@ -284,9 +308,9 @@ body {
 .weakness-detail { font-size: 13px; color: var(--c-text-muted); line-height: 1.6; }
 .weakness-bar { height: 3px; background: var(--c-border); border-radius: 2px; margin-top: 12px; overflow: hidden; }
 .weakness-bar-fill { height: 100%; background: linear-gradient(90deg, var(--c-danger), var(--c-warning)); border-radius: 2px; }
-.weakness-actions { display: flex; gap: 8px; margin-top: 14px; }
+.weakness-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
 
-/* ===== 태그 (Adminator badges) ===== */
+/* ===== 태그 ===== */
 .tag {
   display: inline-block; padding: 3px 10px; border-radius: 4px;
   font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;
@@ -310,6 +334,7 @@ body {
   font-size: 12px; color: var(--c-text-muted); margin-top: 10px;
   line-height: 1.6; max-height: 72px; overflow: hidden; white-space: pre-wrap;
 }
+.collection-card-actions { display: flex; gap: 6px; margin-top: 10px; }
 
 /* ===== 설정 ===== */
 .api-key-input { display: flex; gap: 8px; }
@@ -380,6 +405,13 @@ body {
 }
 .modal-close:hover { color: var(--c-text-base); }
 
+/* ===== 테마 토글 ===== */
+.theme-toggle {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  padding: 8px 12px; border-radius: var(--c-radius); transition: all 0.3s;
+}
+.theme-toggle:hover { background: var(--c-bkg-hover); }
+
 /* ===== 반응형 - 태블릿 ===== */
 @media (max-width: 1024px) {
   .main { padding: 20px; }
@@ -388,7 +420,6 @@ body {
 
 /* ===== 반응형 - 모바일 ===== */
 @media (max-width: 768px) {
-  /* 사이드바 → 하단 탭 바 */
   .sidebar {
     position: fixed; left: 0; right: 0; bottom: 0; top: auto;
     width: 100% !important; height: auto;
@@ -401,15 +432,13 @@ body {
   .nav-menu {
     display: flex; flex-direction: row; width: 100%;
     padding: 0; overflow-x: auto; overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
   }
   .nav-menu::-webkit-scrollbar { display: none; }
   .nav-item {
     flex: 1; flex-direction: column; align-items: center;
     justify-content: center; padding: 8px 4px; gap: 2px;
-    border-left: none; border-bottom: 2px solid transparent;
-    min-width: 0;
+    border-left: none; border-bottom: 2px solid transparent; min-width: 0;
   }
   .nav-item.active { border-left-color: transparent; border-bottom-color: var(--c-primary); }
   .nav-item span:not(.icon) {
@@ -421,91 +450,52 @@ body {
     position: absolute; top: 2px; right: 50%; transform: translateX(14px);
     font-size: 9px; padding: 1px 5px;
   }
-  /* 사이드바 하단 동기화 상태 숨김 */
   .sidebar > div:last-child { display: none; }
-
-  /* 메인 컨텐츠 */
   .main {
     margin-left: 0 !important; padding: 16px 12px;
-    padding-bottom: 80px; /* 하단 탭 바 여유 */
+    padding-bottom: 80px;
   }
-
-  /* 타이틀 */
   .page-title { font-size: 20px; }
   .page-desc { font-size: 13px; margin-bottom: 16px; }
-
-  /* 카드 */
   .card { padding: 16px; margin-bottom: 14px; }
   .card-title { font-size: 14px; margin-bottom: 12px; }
-
-  /* 통계 그리드 */
   .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
   .stat-card { padding: 16px; }
   .stat-value { font-size: 24px; }
   .stat-label { font-size: 10px; }
-
-  /* 폼 */
   .form-row { flex-direction: column; gap: 8px; }
   .form-row > * { flex: none; }
   .form-group { margin-bottom: 10px; }
-  .input, .select { font-size: 16px; padding: 10px 12px; } /* 16px prevents iOS zoom */
-
-  /* 버튼 */
+  .input, .select { font-size: 16px; padding: 10px 12px; }
   .btn { padding: 10px 16px; font-size: 13px; width: 100%; justify-content: center; }
   .btn-sm { padding: 7px 12px; font-size: 11px; width: auto; }
-  div[style*="display:flex"][style*="gap:12px"] { flex-direction: column; }
-  div[style*="display: flex"][style*="gap: 12px"] { flex-direction: column; }
-  div[style*="display:flex"][style*="gap:8px"] { flex-wrap: wrap; }
-  div[style*="display: flex"][style*="gap: 8px"] { flex-wrap: wrap; }
-
-  /* 탭 */
   .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; gap: 0; }
   .tabs::-webkit-scrollbar { display: none; }
   .tab { padding: 10px 14px; font-size: 13px; white-space: nowrap; flex-shrink: 0; }
-
-  /* 업로드 영역 */
   .upload-area { padding: 24px 16px; }
   .upload-icon { font-size: 36px; }
   .upload-text { font-size: 13px; }
-
-  /* 문제 풀기 */
   .quiz-question { padding: 16px; margin-bottom: 12px; }
   .quiz-text { font-size: 14px; line-height: 1.7; }
   .quiz-option { padding: 10px 12px; gap: 10px; }
   .quiz-option .num { min-width: 26px; height: 26px; font-size: 11px; }
-
-  /* 결과 */
   .result-card { padding: 24px; }
   .result-score { font-size: 48px; }
-
-  /* 컬렉션 그리드 */
   .collection-grid { grid-template-columns: 1fr; gap: 12px; }
   .collection-card { padding: 16px; }
-
-  /* 취약점 */
   .weakness-item { padding: 14px; }
   .weakness-header { flex-direction: column; align-items: flex-start; gap: 4px; }
   .weakness-actions { flex-wrap: wrap; }
-
-  /* API 키 입력 */
   .api-key-input { flex-direction: column; }
-
-  /* 모달 */
   .modal { padding: 20px; width: 95%; max-height: 85vh; }
-
-  /* 토스트 */
   .toast-container { top: auto; bottom: 70px; right: 12px; left: 12px; }
   .toast { font-size: 12px; padding: 10px 14px; }
-
-  /* 개념 정리 */
   .concept-content { font-size: 13px; line-height: 1.8; }
   .concept-content h1 { font-size: 17px; }
   .concept-content h2 { font-size: 15px; }
   .concept-content h3 { font-size: 14px; }
   .concept-content table { font-size: 12px; display: block; overflow-x: auto; }
   .concept-content th, .concept-content td { padding: 8px 10px; white-space: nowrap; }
-
-  /* Firebase 설정 */
   .firebase-config-area textarea { font-size: 11px; min-height: 100px; }
 }
 
@@ -646,7 +636,6 @@ body {
         <div class="form-group">
           <label class="form-label">과목 선택</label>
           <select class="select" id="conceptSubject" onchange="refreshSubTopicSelector('conceptSubject','conceptSubTopic')">
-            <!-- 동적으로 채워짐 -->
           </select>
         </div>
         <div class="form-group" style="display:none;">
@@ -660,8 +649,10 @@ body {
           <input class="input" type="text" id="conceptKeyword" placeholder="검색어 입력...">
         </div>
       </div>
-      <button class="btn btn-primary" onclick="generateConcept()">📖 개념 정리 생성</button>
-      <button class="btn btn-secondary" onclick="generateConceptFromAnalysis()">📊 분석 결과 기반 정리</button>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="generateConcept()">📖 개념 정리 생성</button>
+        <button class="btn btn-secondary" onclick="generateConceptFromAnalysis()">📊 분석 결과 기반 정리</button>
+      </div>
     </div>
 
     <!-- 저장된 개념 정리 목록 -->
@@ -672,7 +663,7 @@ body {
 
     <div class="loading" id="conceptLoading">
       <div class="spinner"></div>
-      <span>개념을 정리하고 있습니다...</span>
+      <span id="conceptLoadingText">개념을 정리하고 있습니다...</span>
     </div>
 
     <div id="conceptResult"></div>
@@ -689,7 +680,6 @@ body {
         <div class="form-group">
           <label class="form-label">과목</label>
           <select class="select" id="quizSubject" onchange="refreshSubTopicSelector('quizSubject','quizSubTopic')">
-            <!-- 동적으로 채워짐 -->
           </select>
         </div>
         <div class="form-group">
@@ -719,7 +709,7 @@ body {
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">랜덤성 (1=표준, 5=매우 다양)</label>
+          <label class="form-label">변형 단계 (1=표준, 5=매우 다양)</label>
           <select class="select" id="quizRandomness">
             <option value="1">1 - 표준 출제</option>
             <option value="2">2 - 약간 변형</option>
@@ -745,7 +735,7 @@ body {
     </div>
 
     <div id="quizArea" style="display:none">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:8px;">
         <div>
           <span class="tag tag-info" id="quizInfo"></span>
           <span class="tag tag-warning" id="quizDiffTag"></span>
@@ -760,9 +750,10 @@ body {
 
     <div id="quizResult" style="display:none">
       <div class="result-card" id="resultCard"></div>
-      <div style="margin-top:20px; display:flex; gap:12px; justify-content:center;">
+      <div style="margin-top:20px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
         <button class="btn btn-primary" onclick="generateQuiz()">🔄 새 문제 풀기</button>
         <button class="btn btn-danger" onclick="saveWrongAnswers()">🎯 오답 취약점 저장</button>
+        <button class="btn btn-warning" onclick="generateQuizFromWrongAnswers()">📝 오답 기반 문제 생성</button>
       </div>
       <div id="quizExplanations" style="margin-top:20px;"></div>
     </div>
@@ -852,6 +843,16 @@ body {
   <div class="page" id="page-settings">
     <h1 class="page-title">설정</h1>
     <p class="page-desc">API 키 설정 및 데이터 관리</p>
+
+    <!-- 테마 설정 -->
+    <div class="card">
+      <div class="card-title">🎨 테마 설정</div>
+      <div style="display:flex; gap:12px; flex-wrap:wrap;">
+        <button class="btn btn-secondary" id="themeDarkBtn" onclick="setTheme('dark')">🌙 다크 모드</button>
+        <button class="btn btn-secondary" id="themeLightBtn" onclick="setTheme('light')">☀️ 라이트 모드</button>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-title">📚 과목 관리</div>
       <p style="font-size:13px; color:var(--c-text-muted); margin-bottom:12px;">
@@ -888,7 +889,6 @@ body {
         Google 계정으로 로그인하면 PC와 모바일에서 학습 데이터를 자동 동기화할 수 있습니다.
       </p>
 
-      <!-- Firebase 설정 입력 (미설정 시 표시) -->
       <div id="firebaseConfigSection">
         <div class="firebase-config-area">
           <label style="font-size:13px; font-weight:600; display:block; margin-bottom:6px;">Firebase 설정 (JSON)</label>
@@ -907,7 +907,6 @@ body {
         </p>
       </div>
 
-      <!-- 로그인/동기화 (Firebase 연결 후 표시) -->
       <div id="syncControlSection" style="display:none;">
         <div id="syncStatusDisplay" class="sync-status logged-out" style="margin-bottom:12px;">
           <span class="sync-dot off" id="syncDot"></span>
@@ -961,7 +960,33 @@ body {
   </div>
 </div>
 
+<!-- 모달: 취약점 설정 -->
+<div class="modal-overlay" id="weaknessSettingsModal">
+  <div class="modal" style="max-width:500px;">
+    <button class="modal-close" onclick="closeModal('weaknessSettingsModal')">&times;</button>
+    <h2 class="modal-title" id="weaknessSettingsTitle">취약점 학습 설정</h2>
+    <div id="weaknessSettingsContent"></div>
+  </div>
+</div>
+
+<!-- 모달: 모아보기 문제 풀기 -->
+<div class="modal-overlay" id="collectionQuizModal">
+  <div class="modal" style="max-width:800px;">
+    <button class="modal-close" onclick="closeModal('collectionQuizModal')">&times;</button>
+    <h2 class="modal-title" id="collectionQuizModalTitle"></h2>
+    <div id="collectionQuizModalContent"></div>
+  </div>
+</div>
+
 <script>
+// ==================== 테마 관리 ====================
+function setTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('theme', theme);
+  document.getElementById('themeDarkBtn').style.opacity = theme === 'dark' ? '1' : '0.5';
+  document.getElementById('themeLightBtn').style.opacity = theme === 'light' ? '1' : '0.5';
+}
+
 // ==================== Firebase & 클라우드 동기화 ====================
 let firebaseApp = null;
 let firebaseAuth = null;
@@ -1145,7 +1170,6 @@ async function syncFromCloud(silent = false) {
     }
     const data = doc.data();
 
-    // 충돌 해결: 클라우드가 더 최신이면 불러오기
     const localTime = parseInt(localStorage.getItem('last_sync_time') || '0');
     const cloudTime = data.updatedAt || 0;
 
@@ -1201,7 +1225,7 @@ const DEFAULT_SUBJECTS = ['컴퓨터일반', '정보보호론'];
 const APP_STATE = {
   apiKey: localStorage.getItem('gemini_api_key') || '',
   subjects: safeParseArray('subjects').length > 0 ? safeParseArray('subjects') : [...DEFAULT_SUBJECTS],
-  subTopics: safeParseJSON('sub_topics') || {},  // { "정보보호론": ["암호학", "네트워크보안", ...] }
+  subTopics: safeParseJSON('sub_topics') || {},
   uploadedFiles: [],
   analysisData: safeParseJSON('analysis_data'),
   concepts: safeParseArray('concepts'),
@@ -1269,20 +1293,11 @@ function refreshAllSubjectSelectors() {
   const quizSelect = document.getElementById('quizSubject');
   if (quizSelect) quizSelect.innerHTML = buildSubjectOptions(false);
 
-  // 과목별 필터 드롭다운 갱신
   document.querySelectorAll('.subject-filter-select').forEach(sel => {
     const currentVal = sel.value;
     sel.innerHTML = buildSubjectOptions(true);
     sel.value = currentVal;
   });
-}
-
-function buildSubjectFilterBar(containerId, onChangeCallback) {
-  return `<div style="margin-bottom:16px;">
-    <select class="select subject-filter-select" onchange="${onChangeCallback}" style="max-width:200px;">
-      ${buildSubjectOptions(true)}
-    </select>
-  </div>`;
 }
 
 // ==================== 세부과목 관리 ====================
@@ -1369,7 +1384,6 @@ function saveState() {
   localStorage.setItem('generated_quizzes', JSON.stringify(APP_STATE.generatedQuizzes));
   localStorage.setItem('previous_questions', JSON.stringify(APP_STATE.previousQuestions));
   updateDashboard();
-  // 자동 클라우드 동기화
   if (autoSyncEnabled && firebaseAuth?.currentUser && !isSyncing) {
     clearTimeout(saveState._syncTimer);
     saveState._syncTimer = setTimeout(() => syncToCloud(true), 2000);
@@ -1384,7 +1398,7 @@ async function callGemini(prompt, retries = 2) {
     throw new Error('API 키 없음');
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${APP_STATE.apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${APP_STATE.apiKey}`;
 
   for (let i = 0; i <= retries; i++) {
     try {
@@ -1397,7 +1411,7 @@ async function callGemini(prompt, retries = 2) {
             temperature: 0.8,
             topP: 0.95,
             topK: 40,
-            maxOutputTokens: 8192
+            maxOutputTokens: 65536
           }
         })
       });
@@ -1423,10 +1437,10 @@ async function callGeminiWithPdf(pdfBase64Array, prompt) {
     throw new Error('API 키 없음');
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${APP_STATE.apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${APP_STATE.apiKey}`;
 
   const parts = [];
-  pdfBase64Array.forEach((pdf, i) => {
+  pdfBase64Array.forEach((pdf) => {
     parts.push({
       inlineData: {
         mimeType: 'application/pdf',
@@ -1443,7 +1457,7 @@ async function callGeminiWithPdf(pdfBase64Array, prompt) {
       contents: [{ parts }],
       generationConfig: {
         temperature: 0.3,
-        maxOutputTokens: 8192
+        maxOutputTokens: 65536
       }
     })
   });
@@ -1485,42 +1499,30 @@ function closeModal(id) {
 function formatMarkdown(text) {
   if (!text) return '';
   let html = text;
-  // 코드 블록
   html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
-  // 인라인 코드
   html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-  // 헤더
   html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
   html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
   html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
-  // 볼드/이탤릭
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  // 테이블
   html = html.replace(/^\|(.+)\|$/gm, (match) => {
     const cells = match.split('|').filter(c => c.trim());
     if (cells.every(c => /^[\s-:]+$/.test(c))) return '';
-    const isHeader = false;
-    const tag = 'td';
-    return '<tr>' + cells.map(c => `<${tag}>${c.trim()}</${tag}>`).join('') + '</tr>';
+    return '<tr>' + cells.map(c => `<td>${c.trim()}</td>`).join('') + '</tr>';
   });
   html = html.replace(/(<tr>[\s\S]*?<\/tr>)/g, (match) => {
     if (!match.includes('<table>')) return '<table>' + match + '</table>';
     return match;
   });
-  // 리스트
   html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
   html = html.replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>');
   html = html.replace(/(<li>[\s\S]*?<\/li>)/g, (match) => '<ul>' + match + '</ul>');
-  // 중복 ul 제거
   html = html.replace(/<\/ul>\s*<ul>/g, '');
-  // 인용
   html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
   html = html.replace(/<\/blockquote>\s*<blockquote>/g, '<br>');
-  // 줄바꿈 (빈 줄은 단락, 단일 줄바꿈은 <br>)
   html = html.replace(/\n\n/g, '</p><p>');
   html = html.replace(/\n/g, '<br>\n');
-  // 빈 태그 정리
   html = html.replace(/<p><\/p>/g, '');
   html = html.replace(/<p>(<h[123]>)/g, '$1');
   html = html.replace(/(<\/h[123]>)<\/p>/g, '$1');
@@ -1669,12 +1671,10 @@ async function analyzeFiles() {
 
     APP_STATE.analysisData = analysisData;
 
-    // 분석 결과에서 세부과목 자동 추출
     if (analysisData.categories?.length) {
       let addedCount = 0;
       analysisData.categories.forEach(cat => {
         const subject = cat.subject;
-        // 과목 목록에 없으면 자동 추가
         if (subject && !APP_STATE.subjects.includes(subject)) {
           APP_STATE.subjects.push(subject);
         }
@@ -1702,7 +1702,6 @@ async function analyzeFiles() {
     renderAnalysisResult(analysisData);
     showToast('문제 분석이 완료되었습니다!', 'success');
 
-    // 업로드 수 업데이트
     const prevCount = parseInt(localStorage.getItem('upload_count') || '0');
     localStorage.setItem('upload_count', prevCount + APP_STATE.uploadedFiles.length);
     updateDashboard();
@@ -1724,36 +1723,36 @@ function renderAnalysisResult(data) {
   let html = '';
 
   if (data.summary) {
-    html += `<div style="margin-bottom:20px; padding:16px; background:#0f172a; border-radius:8px; line-height:1.8; white-space:pre-wrap;">${data.summary}</div>`;
+    html += `<div style="margin-bottom:20px; padding:16px; background:var(--c-bkg-body); border-radius:8px; line-height:1.8; white-space:pre-wrap;">${data.summary}</div>`;
   }
 
   if (data.files?.length) {
-    html += `<h3 style="color:#60a5fa; margin-bottom:12px;">📄 분석된 파일</h3>`;
+    html += `<h3 style="color:var(--c-info); margin-bottom:12px;">📄 분석된 파일</h3>`;
     html += `<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:12px; margin-bottom:20px;">`;
     data.files.forEach(f => {
-      html += `<div style="background:#0f172a; padding:12px; border-radius:8px; border:1px solid #334155;">
-        <div style="font-weight:600; color:#f1f5f9;">${f.name}</div>
-        <div style="font-size:13px; color:#94a3b8; margin-top:4px;">${f.year || '?'}년 · ${f.subject || '?'} · ${f.questionCount || '?'}문제</div>
+      html += `<div style="background:var(--c-bkg-body); padding:12px; border-radius:8px; border:1px solid var(--c-border);">
+        <div style="font-weight:600; color:var(--c-text-base);">${f.name}</div>
+        <div style="font-size:13px; color:var(--c-text-muted); margin-top:4px;">${f.year || '?'}년 · ${f.subject || '?'} · ${f.questionCount || '?'}문제</div>
       </div>`;
     });
     html += `</div>`;
   }
 
   if (data.categories?.length) {
-    html += `<h3 style="color:#60a5fa; margin-bottom:12px;">📊 문제 유형 분석</h3>`;
+    html += `<h3 style="color:var(--c-info); margin-bottom:12px;">📊 문제 유형 분석</h3>`;
     data.categories.forEach(cat => {
       html += `<div style="margin-bottom:16px;">`;
-      html += `<h4 style="color:#fbbf24; margin-bottom:8px;">📌 ${cat.subject}</h4>`;
+      html += `<h4 style="color:var(--c-accent); margin-bottom:8px;">📌 ${cat.subject}</h4>`;
       if (cat.topics?.length) {
         cat.topics.forEach(topic => {
           const freqColor = topic.frequency === '높음' ? '#ef4444' : topic.frequency === '중간' ? '#f59e0b' : '#22c55e';
-          html += `<div style="background:#0f172a; padding:12px; border-radius:8px; margin-bottom:8px; border-left:3px solid ${freqColor};">
+          html += `<div style="background:var(--c-bkg-body); padding:12px; border-radius:8px; margin-bottom:8px; border-left:3px solid ${freqColor};">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-              <strong style="color:#f1f5f9;">${topic.name}</strong>
+              <strong style="color:var(--c-text-base);">${topic.name}</strong>
               <span class="tag" style="background:${freqColor}20; color:${freqColor};">빈도: ${topic.frequency}</span>
             </div>
-            <div style="font-size:13px; color:#94a3b8; margin-top:6px; line-height:1.6; white-space:pre-wrap;">${topic.description || ''}</div>
-            ${topic.years?.length ? `<div style="font-size:12px; color:#64748b; margin-top:4px;">출제: ${topic.years.join(', ')}</div>` : ''}
+            <div style="font-size:13px; color:var(--c-text-muted); margin-top:6px; line-height:1.6; white-space:pre-wrap;">${topic.description || ''}</div>
+            ${topic.years?.length ? `<div style="font-size:12px; color:var(--c-text-light); margin-top:4px;">출제: ${topic.years.join(', ')}</div>` : ''}
           </div>`;
         });
       }
@@ -1762,15 +1761,15 @@ function renderAnalysisResult(data) {
   }
 
   if (data.trends) {
-    html += `<div style="margin-top:16px; padding:16px; background:#1e3a5f; border-radius:8px; border-left:3px solid #3b82f6;">
-      <strong style="color:#60a5fa;">📈 출제 경향</strong>
+    html += `<div style="margin-top:16px; padding:16px; background:var(--c-primary-bg); border-radius:8px; border-left:3px solid var(--c-info);">
+      <strong style="color:var(--c-info);">📈 출제 경향</strong>
       <div style="margin-top:8px; line-height:1.8; white-space:pre-wrap;">${data.trends}</div>
     </div>`;
   }
 
   if (data.recommendations) {
-    html += `<div style="margin-top:16px; padding:16px; background:#052e16; border-radius:8px; border-left:3px solid #22c55e;">
-      <strong style="color:#86efac;">💡 학습 추천</strong>
+    html += `<div style="margin-top:16px; padding:16px; background:var(--c-accent-bg); border-radius:8px; border-left:3px solid var(--c-success);">
+      <strong style="color:var(--c-success);">💡 학습 추천</strong>
       <div style="margin-top:8px; line-height:1.8; white-space:pre-wrap;">${data.recommendations}</div>
     </div>`;
   }
@@ -1789,54 +1788,24 @@ async function generateConcept() {
     return;
   }
 
+  // 전체 선택 시 세부과목별 분할 생성
+  if (subject && !subTopic && !keyword) {
+    const subs = getSubTopics(subject);
+    if (subs.length > 0) {
+      await generateConceptBySubTopics(subject, subs);
+      return;
+    }
+  }
+
   const loading = document.getElementById('conceptLoading');
+  const loadingText = document.getElementById('conceptLoadingText');
   loading.classList.add('show');
+  loadingText.textContent = '개념을 정리하고 있습니다...';
 
   const topicLabel = subTopic || keyword || subject;
-  const subTopicInstruction = subTopic
-    ? `\n세부 분야: ${subTopic}\n이 세부 분야에 대해 깊이 있고 상세하게 다뤄주세요. 해당 분야의 모든 핵심 개념, 세부 항목, 관련 기술을 빠짐없이 정리해주세요.`
-    : (keyword ? '' : '\n이 과목의 전반적인 핵심 내용을 개괄적으로 정리해주세요.');
 
   try {
-    const prompt = `당신은 한국 9급 공무원 전산직 시험 전문 강사입니다.
-
-다음 주제에 대해 시험 대비용 개념 정리를 해주세요:
-${subject ? `과목: ${subject}` : ''}${subTopicInstruction}
-${keyword ? `키워드/주제: ${keyword}` : ''}
-
-다음 형식으로 작성해주세요:
-
-# ${topicLabel} 개념 정리
-
-## 1. 핵심 개념
-
-각 개념을 명확히 구분하여 설명하세요.
-- 정의와 특징을 정확히 기술
-- 관련 용어 설명
-- 실제 시험에서 출제되는 포인트 강조
-${subTopic ? `- "${subTopic}" 분야의 모든 세부 항목을 빠짐없이 다루세요` : ''}
-
-## 2. 핵심 비교/구분
-
-비슷한 개념들의 차이점을 표로 정리하세요.
-
-## 3. 시험 출제 포인트
-
-- 자주 출제되는 내용
-- 함정 문제에 주의할 점
-- 암기해야 할 핵심 사항
-
-## 4. 요약
-
-한눈에 볼 수 있는 요약
-
-중요:
-- 각 섹션 사이에 빈 줄을 넣어 가독성을 높여주세요
-- 줄바꿈을 충분히 사용하여 내용을 구분해주세요
-- 볼드(**), 리스트(-), 코드(\`\`)를 적극 활용하세요
-- 표가 필요한 경우 마크다운 표를 사용하세요
-- 내용을 최대한 상세하고 깊이 있게 작성하세요`;
-
+    const prompt = buildConceptPrompt(subject, subTopic, keyword, topicLabel);
     const result = await callGemini(prompt);
 
     const concept = {
@@ -1854,6 +1823,96 @@ ${subTopic ? `- "${subTopic}" 분야의 모든 세부 항목을 빠짐없이 다
     renderConceptResult(concept);
     renderSavedConcepts();
     showToast('개념 정리가 완료되었습니다!', 'success');
+  } catch (e) {
+    showToast('개념 정리 실패: ' + e.message, 'error');
+  } finally {
+    loading.classList.remove('show');
+  }
+}
+
+function buildConceptPrompt(subject, subTopic, keyword, topicLabel) {
+  const subTopicInstruction = subTopic
+    ? `\n세부 분야: ${subTopic}\n이 세부 분야에 대해 매우 깊이 있고 상세하게 다뤄주세요.`
+    : (keyword ? '' : '\n이 과목의 전반적인 핵심 내용을 상세하게 정리해주세요.');
+
+  return `당신은 한국 9급 공무원 전산직 시험 전문 강사입니다.
+
+다음 주제에 대해 시험 대비용 **매우 상세한** 개념 정리를 해주세요:
+${subject ? `과목: ${subject}` : ''}${subTopicInstruction}
+${keyword ? `키워드/주제: ${keyword}` : ''}
+
+다음 형식으로 작성해주세요:
+
+# ${topicLabel} 개념 정리
+
+## 1. 기본 개념 및 정의
+- 각 개념의 정확한 정의와 배경
+- 핵심 용어 설명
+- 관련 표준/규격이 있다면 포함
+${subTopic ? `- "${subTopic}" 분야의 모든 세부 항목을 빠짐없이 다루세요` : ''}
+
+## 2. 세부 내용 상세 정리
+- 각 소주제별로 깊이 있는 설명
+- 동작 원리, 구조, 계층, 분류 등을 포함
+- 실제 적용 사례와 예시
+- 관련 공식이나 계산법이 있다면 포함
+
+## 3. 핵심 비교/구분
+- 비슷한 개념들의 차이점을 **표**로 정리
+- 혼동하기 쉬운 개념 구분법
+- 장단점 비교
+
+## 4. 시험 출제 포인트
+- 실제 기출에서 자주 출제되는 내용
+- 함정 문제 유형과 주의사항
+- 응용 문제 대비 핵심 사항
+
+## 5. 암기 포인트 및 요약
+- 반드시 알아야 할 핵심 사항
+- 한눈에 볼 수 있는 요약표
+- 연관 개념 연결 관계
+
+중요:
+- **최소 2000자 이상** 상세하게 작성하세요
+- 실제 시험에서 응용 문제가 나와도 대처할 수 있도록 깊이 있게 다루세요
+- 각 소주제마다 구체적인 예시를 포함하세요
+- 줄바꿈과 구조화를 충분히 활용하세요
+- 볼드(**), 리스트(-), 코드(\`\`), 표를 적극 활용하세요`;
+}
+
+// 전체 선택 시 세부과목별 분할 생성
+async function generateConceptBySubTopics(subject, subTopics) {
+  const loading = document.getElementById('conceptLoading');
+  const loadingText = document.getElementById('conceptLoadingText');
+  loading.classList.add('show');
+
+  const results = [];
+  try {
+    for (let i = 0; i < subTopics.length; i++) {
+      const st = subTopics[i];
+      loadingText.textContent = `[${i + 1}/${subTopics.length}] "${st}" 개념 정리 중...`;
+      const prompt = buildConceptPrompt(subject, st, '', st);
+      const result = await callGemini(prompt);
+      results.push({ subTopic: st, content: result });
+    }
+
+    // 통합 개념으로 저장
+    const concept = {
+      id: generateId(),
+      subject: subject,
+      subTopic: '',
+      keyword: subject + ' 전체 개념 정리',
+      content: results.map(r => r.content).join('\n\n---\n\n'),
+      subTopicContents: results,
+      createdAt: new Date().toISOString(),
+      type: 'comprehensive'
+    };
+
+    APP_STATE.concepts.push(concept);
+    saveState();
+    renderConceptResult(concept);
+    renderSavedConcepts();
+    showToast(`${subject} 전체 개념 정리 완료! (${subTopics.length}개 세부과목)`, 'success');
   } catch (e) {
     showToast('개념 정리 실패: ' + e.message, 'error');
   } finally {
@@ -1882,7 +1941,10 @@ ${topicsStr}
 
 출제 경향: ${APP_STATE.analysisData.trends || '정보 없음'}
 
-이 분석 결과를 바탕으로 가장 중요한 주제들의 핵심 개념을 정리해주세요.
+이 분석 결과를 바탕으로 가장 중요한 주제들의 핵심 개념을 **매우 상세하게** 정리해주세요.
+
+각 과목별, 각 주제별로 최소 500자 이상 상세하게 설명하세요.
+응용 문제가 나와도 대처할 수 있도록 깊이 있게 다루세요.
 
 다음 형식으로 작성해주세요:
 
@@ -1893,17 +1955,20 @@ ${topicsStr}
 ## [과목명]
 
 ### 핵심 주제 1
-- 정의와 특징
+- 정의와 특징 (상세하게)
+- 동작 원리
+- 비교/구분 (표 형식)
 - 시험 출제 포인트
-- 주의사항
+- 주의사항과 함정
 
 ### 핵심 주제 2
 ...
 
 중요:
-- 각 섹션 사이에 빈 줄을 넣어 가독성을 높여주세요
+- 각 주제당 최소 500자 이상 작성하세요
 - 줄바꿈을 충분히 사용해주세요
-- 출제 빈도가 높은 주제를 우선적으로 다루세요`;
+- 출제 빈도가 높은 주제를 우선적으로 다루세요
+- 응용 문제 대비용 심화 내용도 포함하세요`;
 
     const result = await callGemini(prompt);
 
@@ -1932,7 +1997,7 @@ function renderConceptResult(concept) {
   const container = document.getElementById('conceptResult');
   const html = `
     <div class="card">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:8px;">
         <div class="card-title" style="margin-bottom:0;">
           ${concept.keyword}
           <span class="tag tag-info">${concept.subject}</span>
@@ -1942,7 +2007,7 @@ function renderConceptResult(concept) {
           <button class="btn btn-sm btn-danger" onclick="deleteConcept('${concept.id}')">삭제</button>
         </div>
       </div>
-      <div class="concept-content">${formatMarkdown(concept.content)}</div>
+      <div class="concept-content" style="max-height:400px; overflow-y:auto;">${formatMarkdown(concept.content)}</div>
     </div>
   ` + container.innerHTML;
   container.innerHTML = html;
@@ -1951,45 +2016,133 @@ function renderConceptResult(concept) {
 function expandConcept(id) {
   const concept = APP_STATE.concepts.find(c => c.id === id);
   if (!concept) return;
-  openConceptViewPage(concept.keyword, concept.subject, concept.content);
+
+  // 세부과목별 탭이 있는 경우
+  if (concept.subTopicContents?.length > 0) {
+    openTabbedConceptViewPage(concept.keyword, concept.subject, concept.subTopicContents);
+  } else {
+    openConceptViewPage(concept.keyword, concept.subject, concept.content);
+  }
 }
 
 function openConceptViewPage(title, tag, markdownContent) {
   var html = formatMarkdown(markdownContent);
   var tagHtml = tag ? '<span class="tag">' + tag + '</span>' : '';
+  var isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+  var bg = isDark ? '#0f172a' : '#f8fafc';
+  var cardBg = isDark ? '#1e293b' : '#ffffff';
+  var textColor = isDark ? '#f1f5f9' : '#1e293b';
+  var mutedColor = isDark ? '#94a3b8' : '#64748b';
+  var borderColor = isDark ? '#334155' : '#e2e8f0';
+  var hoverBg = isDark ? '#334155' : '#f1f5f9';
+  var primaryColor = isDark ? '#818cf8' : '#6366f1';
+  var accentColor = isDark ? '#6ee7b7' : '#059669';
+  var h3Color = isDark ? '#a5b4fc' : '#4f46e5';
+
   var pageHtml = '<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">'
     + '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
     + '<title>' + title + ' - 개념 정리</title>'
     + '<style>'
     + '* { margin:0; padding:0; box-sizing:border-box; }'
-    + 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", sans-serif; background: #0f172a; color: #f1f5f9; }'
-    + '.topbar { position:sticky; top:0; z-index:10; background:#1e293b; border-bottom:1px solid #334155; padding:16px 40px; display:flex; align-items:center; gap:16px; box-shadow:0 2px 8px rgba(0,0,0,0.3); }'
-    + '.topbar h1 { font-size:20px; font-weight:700; color:#f1f5f9; }'
-    + '.topbar .tag { padding:4px 12px; border-radius:4px; font-size:11px; font-weight:700; background:rgba(129,140,248,0.15); color:#818cf8; text-transform:uppercase; }'
-    + '.topbar .close-btn { margin-left:auto; padding:8px 20px; border:none; border-radius:6px; background:#334155; color:#e2e8f0; font-size:13px; font-weight:600; cursor:pointer; }'
-    + '.topbar .close-btn:hover { background:#475569; }'
+    + 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", sans-serif; background:' + bg + '; color:' + textColor + '; }'
+    + '.topbar { position:sticky; top:0; z-index:10; background:' + cardBg + '; border-bottom:1px solid ' + borderColor + '; padding:16px 40px; display:flex; align-items:center; gap:16px; box-shadow:0 2px 8px rgba(0,0,0,0.15); }'
+    + '.topbar h1 { font-size:20px; font-weight:700; }'
+    + '.topbar .tag { padding:4px 12px; border-radius:4px; font-size:11px; font-weight:700; background:rgba(129,140,248,0.15); color:' + primaryColor + '; text-transform:uppercase; }'
+    + '.topbar .close-btn { margin-left:auto; padding:8px 20px; border:none; border-radius:6px; background:' + hoverBg + '; color:' + textColor + '; font-size:13px; font-weight:600; cursor:pointer; }'
+    + '.topbar .close-btn:hover { opacity:0.8; }'
     + '.content { max-width:860px; margin:0 auto; padding:40px; line-height:2.0; font-size:15px; }'
-    + 'h1,h2,h3 { color:#818cf8; margin-top:28px; margin-bottom:14px; }'
-    + 'h1 { font-size:24px; border-bottom:2px solid #334155; padding-bottom:12px; }'
-    + 'h2 { font-size:20px; } h3 { font-size:17px; color:#a5b4fc; }'
+    + 'h1,h2,h3 { color:' + primaryColor + '; margin-top:28px; margin-bottom:14px; }'
+    + 'h1 { font-size:24px; border-bottom:2px solid ' + borderColor + '; padding-bottom:12px; }'
+    + 'h2 { font-size:20px; } h3 { font-size:17px; color:' + h3Color + '; }'
     + 'p { margin-bottom:16px; } ul,ol { padding-left:28px; margin:12px 0; }'
     + 'li { margin-bottom:8px; line-height:1.9; }'
-    + 'strong { color:#fbbf24; } em { color:#94a3b8; }'
-    + 'code { background:#334155; padding:2px 7px; border-radius:4px; font-family:Consolas,"Fira Code",monospace; font-size:13px; color:#fbbf24; }'
-    + 'pre { background:#0f172a; padding:20px; border-radius:8px; overflow-x:auto; margin:16px 0; border:1px solid #334155; }'
+    + 'strong { color:' + accentColor + '; } em { color:' + mutedColor + '; }'
+    + 'code { background:' + hoverBg + '; padding:2px 7px; border-radius:4px; font-family:Consolas,"Fira Code",monospace; font-size:13px; color:' + accentColor + '; }'
+    + 'pre { background:' + bg + '; padding:20px; border-radius:8px; overflow-x:auto; margin:16px 0; border:1px solid ' + borderColor + '; }'
     + 'pre code { background:none; padding:0; }'
     + 'table { width:100%; border-collapse:collapse; margin:16px 0; }'
-    + 'th,td { border:1px solid #334155; padding:10px 14px; text-align:left; }'
-    + 'th { background:#334155; color:#818cf8; font-weight:600; font-size:13px; }'
+    + 'th,td { border:1px solid ' + borderColor + '; padding:10px 14px; text-align:left; }'
+    + 'th { background:' + hoverBg + '; color:' + primaryColor + '; font-weight:600; font-size:13px; }'
     + 'td { font-size:14px; }'
-    + 'blockquote { border-left:3px solid #818cf8; padding:12px 20px; background:rgba(129,140,248,0.08); margin:16px 0; border-radius:0 8px 8px 0; }'
-    + '::-webkit-scrollbar { width:6px; } ::-webkit-scrollbar-track { background:#0f172a; } ::-webkit-scrollbar-thumb { background:#334155; border-radius:3px; }'
+    + 'blockquote { border-left:3px solid ' + primaryColor + '; padding:12px 20px; background:rgba(129,140,248,0.08); margin:16px 0; border-radius:0 8px 8px 0; }'
+    + '::-webkit-scrollbar { width:6px; } ::-webkit-scrollbar-track { background:' + bg + '; } ::-webkit-scrollbar-thumb { background:' + borderColor + '; border-radius:3px; }'
     + '@media(max-width:768px){.topbar{padding:12px 16px;}.topbar h1{font-size:16px;}.content{padding:20px 16px;font-size:14px;}h1{font-size:20px;}h2{font-size:17px;}h3{font-size:15px;}table{display:block;overflow-x:auto;}th,td{padding:8px;white-space:nowrap;font-size:12px;}}'
     + '</style></head><body>'
     + '<div class="topbar"><h1>' + title + '</h1>' + tagHtml
     + '<button class="close-btn" onclick="window.close()">✕ 닫기</button></div>'
     + '<div class="content">' + html + '</div>'
     + '</body></html>';
+  var newTab = window.open('', '_blank');
+  newTab.document.write(pageHtml);
+  newTab.document.close();
+}
+
+// 세부과목별 탭이 있는 전체 개념 보기
+function openTabbedConceptViewPage(title, subject, subTopicContents) {
+  var isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+  var bg = isDark ? '#0f172a' : '#f8fafc';
+  var cardBg = isDark ? '#1e293b' : '#ffffff';
+  var textColor = isDark ? '#f1f5f9' : '#1e293b';
+  var mutedColor = isDark ? '#94a3b8' : '#64748b';
+  var borderColor = isDark ? '#334155' : '#e2e8f0';
+  var hoverBg = isDark ? '#334155' : '#f1f5f9';
+  var primaryColor = isDark ? '#818cf8' : '#6366f1';
+  var accentColor = isDark ? '#6ee7b7' : '#059669';
+  var h3Color = isDark ? '#a5b4fc' : '#4f46e5';
+
+  var tabsHtml = subTopicContents.map(function(item, idx) {
+    return '<div class="concept-tab' + (idx === 0 ? ' active' : '') + '" onclick="switchConceptTab(' + idx + ')">' + item.subTopic + '</div>';
+  }).join('');
+
+  var contentsHtml = subTopicContents.map(function(item, idx) {
+    return '<div class="concept-tab-content" id="ctab-' + idx + '" style="' + (idx === 0 ? '' : 'display:none;') + '">' + formatMarkdown(item.content) + '</div>';
+  }).join('');
+
+  var pageHtml = '<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">'
+    + '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
+    + '<title>' + title + '</title>'
+    + '<style>'
+    + '* { margin:0; padding:0; box-sizing:border-box; }'
+    + 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", sans-serif; background:' + bg + '; color:' + textColor + '; }'
+    + '.topbar { position:sticky; top:0; z-index:10; background:' + cardBg + '; border-bottom:1px solid ' + borderColor + '; padding:16px 40px; display:flex; align-items:center; gap:16px; box-shadow:0 2px 8px rgba(0,0,0,0.15); }'
+    + '.topbar h1 { font-size:20px; font-weight:700; }'
+    + '.topbar .tag { padding:4px 12px; border-radius:4px; font-size:11px; font-weight:700; background:rgba(129,140,248,0.15); color:' + primaryColor + '; }'
+    + '.topbar .close-btn { margin-left:auto; padding:8px 20px; border:none; border-radius:6px; background:' + hoverBg + '; color:' + textColor + '; font-size:13px; font-weight:600; cursor:pointer; }'
+    + '.concept-tabs { display:flex; gap:0; border-bottom:2px solid ' + borderColor + '; background:' + cardBg + '; padding:0 40px; overflow-x:auto; position:sticky; top:56px; z-index:9; }'
+    + '.concept-tab { padding:12px 20px; cursor:pointer; color:' + mutedColor + '; border-bottom:2px solid transparent; font-size:14px; font-weight:600; margin-bottom:-2px; white-space:nowrap; transition:all 0.2s; }'
+    + '.concept-tab:hover { color:' + textColor + '; }'
+    + '.concept-tab.active { color:' + primaryColor + '; border-bottom-color:' + primaryColor + '; }'
+    + '.content { max-width:860px; margin:0 auto; padding:40px; line-height:2.0; font-size:15px; }'
+    + 'h1,h2,h3 { color:' + primaryColor + '; margin-top:28px; margin-bottom:14px; }'
+    + 'h1 { font-size:24px; border-bottom:2px solid ' + borderColor + '; padding-bottom:12px; }'
+    + 'h2 { font-size:20px; } h3 { font-size:17px; color:' + h3Color + '; }'
+    + 'p { margin-bottom:16px; } ul,ol { padding-left:28px; margin:12px 0; }'
+    + 'li { margin-bottom:8px; line-height:1.9; }'
+    + 'strong { color:' + accentColor + '; } em { color:' + mutedColor + '; }'
+    + 'code { background:' + hoverBg + '; padding:2px 7px; border-radius:4px; font-family:Consolas,"Fira Code",monospace; font-size:13px; color:' + accentColor + '; }'
+    + 'pre { background:' + bg + '; padding:20px; border-radius:8px; overflow-x:auto; margin:16px 0; border:1px solid ' + borderColor + '; }'
+    + 'pre code { background:none; padding:0; }'
+    + 'table { width:100%; border-collapse:collapse; margin:16px 0; }'
+    + 'th,td { border:1px solid ' + borderColor + '; padding:10px 14px; text-align:left; }'
+    + 'th { background:' + hoverBg + '; color:' + primaryColor + '; font-weight:600; font-size:13px; }'
+    + 'td { font-size:14px; }'
+    + 'blockquote { border-left:3px solid ' + primaryColor + '; padding:12px 20px; background:rgba(129,140,248,0.08); margin:16px 0; border-radius:0 8px 8px 0; }'
+    + '::-webkit-scrollbar { width:6px; } ::-webkit-scrollbar-track { background:' + bg + '; } ::-webkit-scrollbar-thumb { background:' + borderColor + '; border-radius:3px; }'
+    + '@media(max-width:768px){.topbar{padding:12px 16px;}.topbar h1{font-size:16px;}.concept-tabs{padding:0 12px;}.concept-tab{padding:10px 14px;font-size:13px;}.content{padding:20px 16px;font-size:14px;}h1{font-size:20px;}h2{font-size:17px;}h3{font-size:15px;}table{display:block;overflow-x:auto;}th,td{padding:8px;white-space:nowrap;font-size:12px;}}'
+    + '</style></head><body>'
+    + '<div class="topbar"><h1>' + title + '</h1><span class="tag">' + subject + '</span>'
+    + '<button class="close-btn" onclick="window.close()">✕ 닫기</button></div>'
+    + '<div class="concept-tabs">' + tabsHtml + '</div>'
+    + '<div class="content">' + contentsHtml + '</div>'
+    + '<script>'
+    + 'function switchConceptTab(idx) {'
+    + '  document.querySelectorAll(".concept-tab").forEach(function(t,i) { t.classList.toggle("active", i===idx); });'
+    + '  document.querySelectorAll(".concept-tab-content").forEach(function(c,i) { c.style.display = i===idx ? "" : "none"; });'
+    + '  window.scrollTo(0, 0);'
+    + '}'
+    + '<\/script>'
+    + '</body></html>';
+
   var newTab = window.open('', '_blank');
   newTab.document.write(pageHtml);
   newTab.document.close();
@@ -2013,7 +2166,6 @@ function renderSavedConcepts() {
   }
   card.style.display = 'block';
 
-  // 과목별 그룹핑
   const grouped = {};
   APP_STATE.concepts.forEach(c => {
     const key = c.subject || '기타';
@@ -2030,7 +2182,7 @@ function renderSavedConcepts() {
         <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:var(--c-bkg-body); border:1px solid var(--c-border); border-radius:var(--c-radius); margin-bottom:6px; cursor:pointer; transition:all 0.2s;" onmouseenter="this.style.borderColor='var(--c-primary)'" onmouseleave="this.style.borderColor='var(--c-border)'" onclick="expandConcept('${c.id}')">
           <div style="flex:1; min-width:0;">
             <div style="font-size:14px; font-weight:600; color:var(--c-text-base); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${c.keyword}</div>
-            <div style="font-size:11px; color:var(--c-text-light); margin-top:2px;">${new Date(c.createdAt).toLocaleDateString('ko-KR')} · ${c.subTopic ? c.subTopic + ' · ' : ''}${c.type === 'analysis' ? '기출분석 기반' : '직접 생성'}</div>
+            <div style="font-size:11px; color:var(--c-text-light); margin-top:2px;">${new Date(c.createdAt).toLocaleDateString('ko-KR')} · ${c.subTopic ? c.subTopic + ' · ' : ''}${c.type === 'analysis' ? '기출분석 기반' : c.type === 'comprehensive' ? '전체 세부과목' : '직접 생성'}</div>
           </div>
           <div style="display:flex; gap:6px; flex-shrink:0; margin-left:12px;">
             <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); expandConcept('${c.id}')">보기</button>
@@ -2058,7 +2210,6 @@ async function generateQuiz(weaknessTopic = null) {
   document.getElementById('quizArea').style.display = 'none';
   document.getElementById('quizResult').style.display = 'none';
 
-  // 이전 출제 문제 기록 (최근 50개만 유지)
   const prevQSummary = APP_STATE.previousQuestions.slice(-50).map(q => q.summary).join('; ');
 
   const randomInstructions = {
@@ -2077,6 +2228,7 @@ async function generateQuiz(weaknessTopic = null) {
     const subTopicInstr = subTopic ? `\n세부 분야: ${subTopic}\n이 세부 분야에 집중하여 관련 문제만 출제하세요.` : '';
 
     const prompt = `당신은 한국 9급 공무원 전산직 시험 출제위원입니다.
+랜덤 시드: ${Date.now()}
 
 다음 조건으로 ${count}개의 4지선다 문제를 생성해주세요:
 ${subject ? `과목: ${subject}` : ''}${subTopicInstr}
@@ -2089,10 +2241,12 @@ ${APP_STATE.analysisData ? `참고할 기출 분석 데이터: ${JSON.stringify(
 중요 규칙:
 1. 정답과 해설은 반드시 정확해야 합니다
 2. 선택지는 그럴듯하지만 명확히 구분 가능해야 합니다
-3. ${randomness >= 3 ? '이전에 출제한 문제와 최대한 다른 문제를 만드세요' : '기출 수준의 문제를 만드세요'}
-${prevQSummary ? `4. 다음 문제들은 이미 출제되었으니 반복하지 마세요: ${prevQSummary}` : ''}
-5. 실제 시험과 동일한 형식으로 출제하세요
-6. 각 문제의 난이도를 명시하세요
+3. 각 문제는 서로 다른 세부 주제에서 출제하세요 (중복 주제 금지)
+4. ${randomness >= 3 ? '이전에 출제한 문제와 최대한 다른 문제를 만드세요' : '기출 수준의 문제를 만드세요'}
+${prevQSummary ? `5. 다음 문제들은 이미 출제되었으니 유사한 문제를 반복하지 마세요: ${prevQSummary}` : ''}
+6. 실제 시험과 동일한 형식으로 출제하세요
+7. 각 문제의 난이도를 명시하세요
+8. 중요도가 낮은 지엽적 문제는 중복을 특히 피하고, 중요한 핵심 개념 위주로 출제하세요
 
 반드시 다음 JSON 형식으로만 반환하세요 (마크다운 코드 블록 없이):
 {
@@ -2129,7 +2283,6 @@ ${prevQSummary ? `4. 다음 문제들은 이미 출제되었으니 반복하지 
     };
     APP_STATE.currentAnswers = {};
 
-    // 이전 문제 기록에 추가
     quizData.questions.forEach(q => {
       APP_STATE.previousQuestions.push({ summary: q.question.substring(0, 60), topic: q.topic });
     });
@@ -2138,7 +2291,6 @@ ${prevQSummary ? `4. 다음 문제들은 이미 출제되었으니 반복하지 
     }
     saveState();
 
-    // 생성된 퀴즈 저장
     APP_STATE.generatedQuizzes.push({
       id: generateId(),
       ...APP_STATE.currentQuiz
@@ -2164,6 +2316,65 @@ function generateWeaknessQuiz() {
   generateQuiz();
 }
 
+// 오답 기반 문제 생성
+async function generateQuizFromWrongAnswers() {
+  const wrongTopics = APP_STATE._currentWrongTopics;
+  if (!wrongTopics || wrongTopics.length === 0) {
+    showToast('오답이 없습니다!', 'info');
+    return;
+  }
+
+  // 설정 모달 표시
+  const modal = document.getElementById('weaknessSettingsModal');
+  document.getElementById('weaknessSettingsTitle').textContent = '오답 기반 문제 생성 설정';
+  document.getElementById('weaknessSettingsContent').innerHTML = `
+    <div class="form-group">
+      <label class="form-label">문제 수</label>
+      <select class="select" id="wrongQuizCount">
+        <option value="5" selected>5문제</option>
+        <option value="10">10문제</option>
+        <option value="15">15문제</option>
+        <option value="20">20문제</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">난이도</label>
+      <select class="select" id="wrongQuizDiff">
+        <option value="쉬움">쉬움</option>
+        <option value="보통" selected>보통</option>
+        <option value="어려움">어려움</option>
+        <option value="랜덤">랜덤</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">변형 단계</label>
+      <select class="select" id="wrongQuizVar">
+        <option value="1">1 - 유사 문제</option>
+        <option value="2">2 - 약간 변형</option>
+        <option value="3" selected>3 - 보통 변형</option>
+        <option value="4">4 - 많은 변형</option>
+        <option value="5">5 - 완전히 다른 각도</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" onclick="executeWrongAnswerQuiz()" style="width:100%;">문제 생성</button>
+  `;
+  modal.classList.add('show');
+}
+
+async function executeWrongAnswerQuiz() {
+  closeModal('weaknessSettingsModal');
+  const count = parseInt(document.getElementById('wrongQuizCount').value);
+  const difficulty = document.getElementById('wrongQuizDiff').value;
+  const variation = parseInt(document.getElementById('wrongQuizVar').value);
+  const wrongTopics = APP_STATE._currentWrongTopics;
+
+  document.getElementById('quizTopic').value = wrongTopics.map(w => w.topic).join(', ');
+  document.getElementById('quizCount').value = count;
+  document.getElementById('quizDifficulty').value = difficulty;
+  document.getElementById('quizRandomness').value = variation;
+  generateQuiz();
+}
+
 function renderQuiz(data) {
   const area = document.getElementById('quizArea');
   area.style.display = 'block';
@@ -2176,7 +2387,7 @@ function renderQuiz(data) {
   const container = document.getElementById('quizQuestions');
   container.innerHTML = data.questions.map((q, i) => `
     <div class="quiz-question" id="question-${i}">
-      <div class="quiz-number">문제 ${i + 1} <span class="tag tag-${q.difficulty === '어려움' ? 'danger' : q.difficulty === '보통' ? 'warning' : 'success'}" style="margin-left:8px;">${q.difficulty}</span> <span style="color:#64748b; font-weight:400;">${q.topic || ''}</span></div>
+      <div class="quiz-number">문제 ${i + 1} <span class="tag tag-${q.difficulty === '어려움' ? 'danger' : q.difficulty === '보통' ? 'warning' : 'success'}" style="margin-left:8px;">${q.difficulty}</span> <span style="color:var(--c-text-light); font-weight:400;">${q.topic || ''}</span></div>
       <div class="quiz-text">${q.question}</div>
       <div class="quiz-options">
         ${q.options.map((opt, j) => `
@@ -2195,10 +2406,7 @@ function renderQuiz(data) {
 }
 
 function selectAnswer(qIdx, oIdx) {
-  // 이미 채점된 경우 선택 불가
   if (document.querySelector(`#question-${qIdx} .quiz-option.correct`)) return;
-
-  // 이전 선택 해제
   document.querySelectorAll(`#question-${qIdx} .quiz-option`).forEach(el => el.classList.remove('selected'));
   document.getElementById(`option-${qIdx}-${oIdx}`).classList.add('selected');
   APP_STATE.currentAnswers[qIdx] = oIdx;
@@ -2222,7 +2430,6 @@ function submitQuiz() {
     const userAnswer = APP_STATE.currentAnswers[i];
     const correctAnswer = q.answer;
 
-    // 정답 표시
     document.getElementById(`option-${i}-${correctAnswer}`).classList.add('correct');
 
     if (userAnswer === correctAnswer) {
@@ -2234,10 +2441,7 @@ function submitQuiz() {
       wrongTopics.push({ topic: q.topic || quiz.subject, question: q.question, explanation: q.explanation });
     }
 
-    // 해설 표시
     document.getElementById(`explanation-${i}`).classList.add('show');
-
-    // 클릭 비활성화
     document.querySelectorAll(`#question-${i} .quiz-option`).forEach(el => {
       el.style.pointerEvents = 'none';
     });
@@ -2256,7 +2460,6 @@ function submitQuiz() {
   `;
   document.getElementById('quizResult').style.display = 'block';
 
-  // 학습 기록 저장
   const historyEntry = {
     id: generateId(),
     date: new Date().toISOString(),
@@ -2269,7 +2472,6 @@ function submitQuiz() {
   };
   APP_STATE.quizHistory.push(historyEntry);
 
-  // 현재 퀴즈의 오답 정보 임시 저장
   APP_STATE._currentWrongTopics = wrongTopics;
 
   saveState();
@@ -2283,7 +2485,6 @@ async function saveWrongAnswers() {
     return;
   }
 
-  // 취약점 업데이트
   const quizSubject = APP_STATE.currentQuiz?.subject || '기타';
   wrongTopics.forEach(w => {
     const existing = APP_STATE.weaknesses.find(x => x.topic === w.topic && x.subject === quizSubject);
@@ -2356,19 +2557,108 @@ function renderWeaknessList() {
         <div class="weakness-bar-fill" style="width:${(w.count / maxCount * 100)}%"></div>
       </div>
       <div class="weakness-actions">
-        <button class="btn btn-sm btn-primary" onclick="generateWeaknessConcept('${w.id}')">📖 개념 정리</button>
-        <button class="btn btn-sm btn-warning" onclick="generateWeaknessQuizSingle('${w.id}')">✏️ 문제 생성</button>
+        <button class="btn btn-sm btn-primary" onclick="showWeaknessConceptSettings('${w.id}')">📖 개념 정리</button>
+        <button class="btn btn-sm btn-warning" onclick="showWeaknessQuizSettings('${w.id}')">✏️ 문제 생성</button>
         <button class="btn btn-sm btn-danger" onclick="deleteWeakness('${w.id}')">삭제</button>
       </div>
     </div>
   `).join('');
 }
 
-async function generateWeaknessConcept(weaknessId) {
+// 취약점 개념 정리 설정 모달
+function showWeaknessConceptSettings(weaknessId) {
+  const weakness = APP_STATE.weaknesses.find(w => w.id === weaknessId);
+  if (!weakness) return;
+
+  const modal = document.getElementById('weaknessSettingsModal');
+  document.getElementById('weaknessSettingsTitle').textContent = `"${weakness.topic}" 개념 정리 설정`;
+  document.getElementById('weaknessSettingsContent').innerHTML = `
+    <div class="form-group">
+      <label class="form-label">정리 수준</label>
+      <select class="select" id="wConceptLevel">
+        <option value="basic">기본 개념 정리</option>
+        <option value="detailed" selected>상세 개념 정리 (추천)</option>
+        <option value="deep">심층 개념 정리 (응용 대비)</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" onclick="executeWeaknessConcept('${weaknessId}')" style="width:100%;">개념 정리 생성</button>
+  `;
+  modal.classList.add('show');
+}
+
+async function executeWeaknessConcept(weaknessId) {
+  closeModal('weaknessSettingsModal');
+  const level = document.getElementById('wConceptLevel').value;
+  await generateWeaknessConcept(weaknessId, level);
+}
+
+// 취약점 문제 생성 설정 모달
+function showWeaknessQuizSettings(weaknessId) {
+  const weakness = APP_STATE.weaknesses.find(w => w.id === weaknessId);
+  if (!weakness) return;
+
+  const modal = document.getElementById('weaknessSettingsModal');
+  document.getElementById('weaknessSettingsTitle').textContent = `"${weakness.topic}" 문제 생성 설정`;
+  document.getElementById('weaknessSettingsContent').innerHTML = `
+    <div class="form-group">
+      <label class="form-label">문제 수</label>
+      <select class="select" id="wQuizCount">
+        <option value="3">3문제</option>
+        <option value="5" selected>5문제</option>
+        <option value="10">10문제</option>
+        <option value="15">15문제</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">난이도</label>
+      <select class="select" id="wQuizDiff">
+        <option value="쉬움">쉬움</option>
+        <option value="보통" selected>보통</option>
+        <option value="어려움">어려움</option>
+        <option value="랜덤">랜덤 (섞어서)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">변형 단계</label>
+      <select class="select" id="wQuizVar">
+        <option value="1">1 - 유사 문제 (틀린 문제와 비슷)</option>
+        <option value="2">2 - 약간 변형</option>
+        <option value="3" selected>3 - 보통 변형</option>
+        <option value="4">4 - 많은 변형</option>
+        <option value="5">5 - 완전히 새로운 각도</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+        <input type="checkbox" id="wQuizFromWrong" checked>
+        오답 기반 문제 포함 (틀린 문제를 변형하여 출제)
+      </label>
+    </div>
+    <button class="btn btn-primary" onclick="executeWeaknessQuiz('${weaknessId}')" style="width:100%;">문제 생성</button>
+  `;
+  modal.classList.add('show');
+}
+
+async function executeWeaknessQuiz(weaknessId) {
+  closeModal('weaknessSettingsModal');
+  const count = parseInt(document.getElementById('wQuizCount').value);
+  const difficulty = document.getElementById('wQuizDiff').value;
+  const variation = parseInt(document.getElementById('wQuizVar').value);
+  const fromWrong = document.getElementById('wQuizFromWrong').checked;
+  await generateWeaknessQuizSingle(weaknessId, count, difficulty, variation, fromWrong);
+}
+
+async function generateWeaknessConcept(weaknessId, level = 'detailed') {
   const weakness = APP_STATE.weaknesses.find(w => w.id === weaknessId);
   if (!weakness) return;
 
   showToast('개념 정리를 생성하고 있습니다...', 'info');
+
+  const levelInstruction = {
+    basic: '기본적인 개념을 명확하게 정리해주세요.',
+    detailed: '매우 상세하고 깊이 있게 정리해주세요. 모든 세부 항목을 빠짐없이 다루세요.',
+    deep: '최대한 심층적으로 정리해주세요. 응용 문제에도 대응할 수 있도록 원리, 동작 방식, 실제 사례까지 포함하세요.'
+  };
 
   try {
     const prompt = `당신은 한국 9급 공무원 전산직 시험 전문 강사입니다.
@@ -2376,41 +2666,46 @@ async function generateWeaknessConcept(weaknessId) {
 학생이 "${weakness.topic}" 관련 문제를 ${weakness.count}번 틀렸습니다.
 
 틀린 문제 예시:
-${weakness.questions.slice(-3).map((q, i) => `${i + 1}. ${q}`).join('\n')}
+${weakness.questions.slice(-5).map((q, i) => `${i + 1}. ${q}`).join('\n')}
 
-이 학생의 취약점을 보완하기 위한 상세한 개념 정리를 해주세요.
+${levelInstruction[level]}
+
+이 학생의 취약점을 보완하기 위한 개념 정리를 해주세요.
 
 다음 형식으로 작성하세요:
 
 # ${weakness.topic} - 취약점 보완 개념 정리
 
 ## 1. 기본 개념 다시잡기
-
 해당 주제의 기본 개념을 처음부터 명확하게 설명해주세요.
-- 정의
-- 핵심 특징
-- 관련 용어
+- 정확한 정의
+- 핵심 특징과 속성
+- 관련 용어 설명
+- 역사적 배경이나 발전 과정
 
-## 2. 자주 헷갈리는 포인트
+## 2. 세부 내용 상세 정리
+- 각 하위 개념을 깊이 있게 설명
+- 동작 원리와 구조
+- 분류와 유형
+- 실제 적용 사례
 
+## 3. 자주 헷갈리는 포인트
 학생이 틀린 문제를 분석하여 혼동하기 쉬운 부분을 집중적으로 설명해주세요.
 
-## 3. 핵심 비교표
-
+## 4. 핵심 비교표
 관련된 개념들을 표로 비교 정리해주세요.
 
-## 4. 암기 포인트
-
+## 5. 암기 포인트
 시험에서 반드시 알아야 할 핵심 사항을 정리해주세요.
 
-## 5. 실전 팁
-
+## 6. 실전 팁
 이 주제의 문제를 풀 때 주의할 점과 접근법을 알려주세요.
 
 중요:
+- 최소 1500자 이상 상세하게 작성하세요
 - 줄바꿈을 충분히 사용하세요
-- 각 섹션 사이에 빈 줄을 넣으세요
-- 볼드, 리스트, 코드블록을 활용하세요`;
+- 볼드, 리스트, 코드블록, 표를 활용하세요
+- 응용 문제 대비 심화 내용도 포함하세요`;
 
     const result = await callGemini(prompt);
 
@@ -2420,6 +2715,7 @@ ${weakness.questions.slice(-3).map((q, i) => `${i + 1}. ${q}`).join('\n')}
       subject: weakness.subject || '기타',
       topic: weakness.topic,
       content: result,
+      level: level,
       createdAt: new Date().toISOString()
     };
 
@@ -2427,7 +2723,6 @@ ${weakness.questions.slice(-3).map((q, i) => `${i + 1}. ${q}`).join('\n')}
     saveState();
     showToast(`"${weakness.topic}" 개념 정리가 생성되었습니다!`, 'success');
 
-    // 새 탭으로 보여주기
     openConceptViewPage(weakness.topic + ' - 취약점 개념 정리', weakness.subject || '취약점', result);
 
   } catch (e) {
@@ -2435,30 +2730,41 @@ ${weakness.questions.slice(-3).map((q, i) => `${i + 1}. ${q}`).join('\n')}
   }
 }
 
-async function generateWeaknessQuizSingle(weaknessId) {
+async function generateWeaknessQuizSingle(weaknessId, count = 5, difficulty = '보통', variation = 3, fromWrong = true) {
   const weakness = APP_STATE.weaknesses.find(w => w.id === weaknessId);
   if (!weakness) return;
 
   showToast('취약점 문제를 생성하고 있습니다...', 'info');
 
-  const randomness = parseInt(document.getElementById('quizRandomness')?.value || '3');
-  const randomSeed = Date.now();
+  const diffInstr = difficulty === '랜덤'
+    ? '쉬움, 보통, 어려움을 골고루 섞어서 출제하세요.'
+    : `난이도: ${difficulty}`;
+
+  const variationInstr = {
+    1: '틀린 문제와 매우 유사한 형태로 출제하되, 숫자나 선택지만 변경하세요.',
+    2: '같은 개념이지만 다른 표현으로 질문하세요.',
+    3: '다양한 각도에서 출제하세요.',
+    4: '예상치 못한 각도와 복합 개념을 활용하세요.',
+    5: '매우 창의적이고 독특한 상황을 설정하여 출제하세요.'
+  };
 
   try {
     const prompt = `당신은 한국 9급 공무원 전산직 시험 출제위원입니다.
-랜덤 시드: ${randomSeed}
+랜덤 시드: ${Date.now()}
 
-학생의 취약 분야인 "${weakness.topic}"에 대해 5문제를 출제해주세요.
+학생의 취약 분야인 "${weakness.topic}"에 대해 ${count}문제를 출제해주세요.
 
 학생이 틀린 문제 예시:
-${weakness.questions.slice(-3).map((q, i) => `${i + 1}. ${q}`).join('\n')}
+${weakness.questions.slice(-5).map((q, i) => `${i + 1}. ${q}`).join('\n')}
+
+${diffInstr}
+변형 수준: ${variation}/5 - ${variationInstr[variation]}
 
 규칙:
-1. 위 문제와는 다른 각도에서 출제하세요
-2. 취약점을 정확히 파악하여 보완할 수 있는 문제를 만드세요
-3. 정답과 해설은 100% 정확해야 합니다
-4. 난이도를 쉬움 2개, 보통 2개, 어려움 1개로 섞어주세요
-5. 랜덤성 수준 ${randomness}/5으로 다양하게 출제하세요
+1. ${fromWrong ? '틀린 문제를 분석하여 취약점을 정확히 파악하고, 같은 유형의 함정에 빠지지 않도록 하는 문제를 만드세요' : '이 주제의 다양한 측면에서 출제하세요'}
+2. 정답과 해설은 100% 정확해야 합니다
+3. 각 문제는 서로 다른 세부 포인트에서 출제하세요
+4. 이전에 출제한 문제와 동일하지 않게 하세요
 
 JSON 형식으로만 반환 (마크다운 코드 블록 없이):
 {
@@ -2491,15 +2797,16 @@ JSON 형식으로만 반환 (마크다운 코드 블록 없이):
       subject: weakness.subject || '기타',
       topic: weakness.topic,
       questions: quizData.questions,
+      difficulty: difficulty,
+      variation: variation,
       createdAt: new Date().toISOString()
     };
 
     APP_STATE.weaknessQuizzes.push(quizEntry);
     saveState();
 
-    // 모달로 문제 풀기
     showWeaknessQuizModal(quizEntry);
-    showToast(`"${weakness.topic}" 문제가 생성되었습니다!`, 'success');
+    showToast(`"${weakness.topic}" ${count}문제가 생성되었습니다!`, 'success');
 
   } catch (e) {
     showToast('문제 생성 실패: ' + e.message, 'error');
@@ -2533,7 +2840,6 @@ function showWeaknessQuizModal(quizEntry) {
     </div>
   `;
 
-  // 답 저장용
   window._weaknessAnswers = window._weaknessAnswers || {};
   window._weaknessAnswers[quizEntry.id] = {};
 
@@ -2577,7 +2883,6 @@ function deleteWeakness(id) {
   showToast('취약점이 삭제되었습니다.', 'info');
 }
 
-// 취약점 개념 모아보기
 function renderWeaknessConceptCollection() {
   const container = document.getElementById('weaknessConceptCollection');
   if (APP_STATE.weaknessConcepts.length === 0) {
@@ -2587,13 +2892,13 @@ function renderWeaknessConceptCollection() {
 
   container.innerHTML = APP_STATE.weaknessConcepts.map(c => `
     <div class="card">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:8px;">
         <div class="card-title" style="margin-bottom:0;">
           📖 ${c.topic}
           <span class="tag tag-danger">취약점</span>
         </div>
         <div style="display:flex; gap:8px;">
-          <span style="font-size:12px; color:#64748b;">${new Date(c.createdAt).toLocaleDateString('ko-KR')}</span>
+          <span style="font-size:12px; color:var(--c-text-light);">${new Date(c.createdAt).toLocaleDateString('ko-KR')}</span>
           <button class="btn btn-sm btn-secondary" onclick="expandWeaknessConcept('${c.id}')">🔍 전체보기</button>
           <button class="btn btn-sm btn-danger" onclick="deleteWeaknessConcept('${c.id}')">삭제</button>
         </div>
@@ -2616,7 +2921,6 @@ function deleteWeaknessConcept(id) {
   showToast('삭제되었습니다.', 'info');
 }
 
-// 취약점 문제 모아보기
 function renderWeaknessQuizCollection() {
   const container = document.getElementById('weaknessQuizCollection');
   if (APP_STATE.weaknessQuizzes.length === 0) {
@@ -2626,19 +2930,19 @@ function renderWeaknessQuizCollection() {
 
   container.innerHTML = APP_STATE.weaknessQuizzes.map(q => `
     <div class="card">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
         <div class="card-title" style="margin-bottom:0;">
           ✏️ ${q.topic}
           <span class="tag tag-warning">${q.questions.length}문제</span>
         </div>
         <div style="display:flex; gap:8px;">
-          <span style="font-size:12px; color:#64748b;">${new Date(q.createdAt).toLocaleDateString('ko-KR')}</span>
+          <span style="font-size:12px; color:var(--c-text-light);">${new Date(q.createdAt).toLocaleDateString('ko-KR')}</span>
           <button class="btn btn-sm btn-primary" onclick='showWeaknessQuizModal(${JSON.stringify(q).replace(/'/g, "&#39;")})'>🔄 다시 풀기</button>
           <button class="btn btn-sm btn-danger" onclick="deleteWeaknessQuiz('${q.id}')">삭제</button>
         </div>
       </div>
-      <div style="font-size:13px; color:#94a3b8;">
-        ${q.questions.map((qq, i) => `<div style="padding:4px 0; border-bottom:1px solid #1e293b;">Q${i + 1}. ${qq.question.substring(0, 80)}...</div>`).join('')}
+      <div style="font-size:13px; color:var(--c-text-muted);">
+        ${q.questions.map((qq, i) => `<div style="padding:4px 0; border-bottom:1px solid var(--c-border);">Q${i + 1}. ${qq.question.substring(0, 80)}...</div>`).join('')}
       </div>
     </div>
   `).join('');
@@ -2677,7 +2981,15 @@ function renderCollectionConcepts() {
     return;
   }
 
-  container.innerHTML = `<div class="collection-grid">${allConcepts.map(c => `
+  // 전체 보기 버튼 + 개별 카드
+  let html = '';
+  if (allConcepts.length > 1) {
+    html += `<div style="margin-bottom:16px;">
+      <button class="btn btn-primary" onclick="openAllConceptsInNewTab()">📖 전체 개념 보기 (새 탭)</button>
+    </div>`;
+  }
+
+  html += `<div class="collection-grid">${allConcepts.map(c => `
     <div class="collection-card" onclick="showCollectionConcept('${c.id}', '${c.weaknessId ? 'weakness' : 'general'}')">
       <div class="collection-card-title">
         ${c.keyword || c.topic}
@@ -2687,6 +2999,28 @@ function renderCollectionConcepts() {
       <div class="collection-card-preview">${(c.content || '').substring(0, 150)}...</div>
     </div>
   `).join('')}</div>`;
+
+  container.innerHTML = html;
+}
+
+function openAllConceptsInNewTab() {
+  const filterSubject = document.getElementById('collectionSubjectFilter')?.value || '';
+  let allConcepts = [...APP_STATE.concepts, ...APP_STATE.weaknessConcepts.map(c => ({...c, keyword: c.topic}))];
+  if (filterSubject) {
+    allConcepts = allConcepts.filter(c => c.subject === filterSubject);
+  }
+  if (allConcepts.length === 0) return;
+
+  const subTopicContents = allConcepts.map(c => ({
+    subTopic: c.keyword || c.topic || '개념',
+    content: c.content
+  }));
+
+  openTabbedConceptViewPage(
+    filterSubject ? filterSubject + ' 전체 개념' : '전체 개념 모아보기',
+    filterSubject || '전체',
+    subTopicContents
+  );
 }
 
 function showCollectionConcept(id, type) {
@@ -2694,7 +3028,12 @@ function showCollectionConcept(id, type) {
     ? APP_STATE.weaknessConcepts.find(c => c.id === id)
     : APP_STATE.concepts.find(c => c.id === id);
   if (!concept) return;
-  openConceptViewPage(concept.keyword || concept.topic, concept.subject || '취약점', concept.content);
+
+  if (concept.subTopicContents?.length > 0) {
+    openTabbedConceptViewPage(concept.keyword, concept.subject, concept.subTopicContents);
+  } else {
+    openConceptViewPage(concept.keyword || concept.topic, concept.subject || '취약점', concept.content);
+  }
 }
 
 function renderCollectionQuizzes() {
@@ -2724,8 +3063,91 @@ function renderCollectionQuizzes() {
       <div class="collection-card-preview">
         ${q.questions?.slice(0, 2).map((qq, i) => `Q${i + 1}. ${qq.question?.substring(0, 60)}...`).join('\n') || ''}
       </div>
+      <div class="collection-card-actions">
+        <button class="btn btn-sm btn-primary" onclick="retakeCollectionQuiz('${q.id}')">🔄 다시 풀기</button>
+      </div>
     </div>
   `).join('')}</div>`;
+}
+
+function retakeCollectionQuiz(quizId) {
+  // generatedQuizzes에서 찾기
+  let quiz = APP_STATE.generatedQuizzes.find(q => q.id === quizId);
+  if (quiz && quiz.questions) {
+    showCollectionQuizModal(quiz);
+    return;
+  }
+  // weaknessQuizzes에서 찾기
+  quiz = APP_STATE.weaknessQuizzes.find(q => q.id === quizId);
+  if (quiz && quiz.questions) {
+    showWeaknessQuizModal(quiz);
+    return;
+  }
+  showToast('문제를 찾을 수 없습니다.', 'error');
+}
+
+function showCollectionQuizModal(quizEntry) {
+  const modalId = 'collectionQuizModal';
+  document.getElementById('collectionQuizModalTitle').textContent = `${quizEntry.subject || '문제'} - 다시 풀기`;
+  const container = document.getElementById('collectionQuizModalContent');
+  const uid = 'cq-' + quizEntry.id;
+
+  container.innerHTML = quizEntry.questions.map((q, i) => `
+    <div class="quiz-question" id="${uid}-${i}">
+      <div class="quiz-number">문제 ${i + 1} <span class="tag tag-${q.difficulty === '어려움' ? 'danger' : q.difficulty === '보통' ? 'warning' : 'success'}">${q.difficulty}</span> <span style="color:var(--c-text-light);font-weight:400;">${q.topic || ''}</span></div>
+      <div class="quiz-text">${q.question}</div>
+      <div class="quiz-options">
+        ${q.options.map((opt, j) => `
+          <div class="quiz-option" onclick="selectCollectionAnswer('${uid}', ${i}, ${j})" id="${uid}-opt-${i}-${j}">
+            <div class="num">${j + 1}</div>
+            <div>${opt}</div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="explanation" id="${uid}-exp-${i}">
+        <div class="explanation-title">📝 해설</div>
+        <div style="white-space:pre-wrap; line-height:1.8;">${q.explanation || ''}</div>
+      </div>
+    </div>
+  `).join('') + `
+    <div style="text-align:center; margin-top:20px;">
+      <button class="btn btn-success" onclick="submitCollectionQuiz('${uid}', '${quizEntry.id}')">📝 채점하기</button>
+    </div>
+  `;
+
+  window._collectionAnswers = window._collectionAnswers || {};
+  window._collectionAnswers[uid] = {};
+
+  document.getElementById(modalId).classList.add('show');
+}
+
+function selectCollectionAnswer(uid, qIdx, oIdx) {
+  if (document.querySelector(`#${uid}-${qIdx} .quiz-option.correct`)) return;
+  document.querySelectorAll(`#${uid}-${qIdx} .quiz-option`).forEach(el => el.classList.remove('selected'));
+  document.getElementById(`${uid}-opt-${qIdx}-${oIdx}`).classList.add('selected');
+  window._collectionAnswers[uid][qIdx] = oIdx;
+}
+
+function submitCollectionQuiz(uid, quizId) {
+  const quiz = APP_STATE.generatedQuizzes.find(q => q.id === quizId);
+  if (!quiz) return;
+
+  const answers = window._collectionAnswers[uid] || {};
+  let correct = 0;
+
+  quiz.questions.forEach((q, i) => {
+    const userAnswer = answers[i];
+    document.getElementById(`${uid}-opt-${i}-${q.answer}`).classList.add('correct');
+    if (userAnswer === q.answer) {
+      correct++;
+    } else if (userAnswer !== undefined) {
+      document.getElementById(`${uid}-opt-${i}-${userAnswer}`).classList.add('wrong');
+    }
+    document.getElementById(`${uid}-exp-${i}`).classList.add('show');
+    document.querySelectorAll(`#${uid}-${i} .quiz-option`).forEach(el => el.style.pointerEvents = 'none');
+  });
+
+  showToast(`${correct}/${quiz.questions.length} 정답! (${Math.round(correct / quiz.questions.length * 100)}점)`, correct === quiz.questions.length ? 'success' : 'info');
 }
 
 function refreshCollectionTab() {
@@ -2750,16 +3172,16 @@ function renderCollectionHistory() {
 
   container.innerHTML = history.slice().reverse().map(h => `
     <div class="card" style="margin-bottom:12px;">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
         <div>
           <span class="tag tag-info">${h.subject}</span>
           <span class="tag tag-warning">${h.difficulty}</span>
-          <span style="margin-left:12px; font-size:14px; font-weight:600; color:${h.score >= 80 ? '#22c55e' : h.score >= 60 ? '#f59e0b' : '#ef4444'};">${h.score}점</span>
-          <span style="font-size:13px; color:#94a3b8; margin-left:8px;">(${h.correct}/${h.total})</span>
+          <span style="margin-left:12px; font-size:14px; font-weight:600; color:${h.score >= 80 ? 'var(--c-success)' : h.score >= 60 ? 'var(--c-warning)' : 'var(--c-danger)'};">${h.score}점</span>
+          <span style="font-size:13px; color:var(--c-text-muted); margin-left:8px;">(${h.correct}/${h.total})</span>
         </div>
-        <span style="font-size:12px; color:#64748b;">${new Date(h.date).toLocaleString('ko-KR')}</span>
+        <span style="font-size:12px; color:var(--c-text-light);">${new Date(h.date).toLocaleString('ko-KR')}</span>
       </div>
-      ${h.wrongTopics?.length ? `<div style="margin-top:8px; font-size:12px; color:#fca5a5;">오답 분야: ${h.wrongTopics.join(', ')}</div>` : ''}
+      ${h.wrongTopics?.length ? `<div style="margin-top:8px; font-size:12px; color:var(--c-danger);">오답 분야: ${h.wrongTopics.join(', ')}</div>` : ''}
     </div>
   `).join('');
 }
@@ -2779,7 +3201,6 @@ function updateDashboard() {
   document.getElementById('statWeakness').textContent = APP_STATE.weaknesses.length;
   updateWeaknessBadge();
 
-  // 과목별 통계
   const subjectStatsContainer = document.getElementById('subjectStats');
   if (subjectStatsContainer) {
     if (APP_STATE.quizHistory.length === 0) {
@@ -2802,7 +3223,7 @@ function updateDashboard() {
       subjectStatsContainer.innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px;">` +
         Object.entries(subjectMap).map(([subject, stats]) => {
           const rate = stats.total > 0 ? Math.round(stats.correct / stats.total * 100) : 0;
-          const color = rate >= 80 ? '#22c55e' : rate >= 60 ? '#f59e0b' : '#ef4444';
+          const color = rate >= 80 ? 'var(--c-success)' : rate >= 60 ? 'var(--c-warning)' : 'var(--c-danger)';
           return `<div style="background:var(--c-bkg-body); border:1px solid var(--c-border); border-radius:var(--c-radius-lg); padding:16px;">
             <div style="font-weight:700; color:var(--c-primary); margin-bottom:8px;">${subject}</div>
             <div style="font-size:24px; font-weight:800; color:${color};">${rate}%</div>
@@ -2815,19 +3236,18 @@ function updateDashboard() {
     }
   }
 
-  // 최근 기록
   const recentContainer = document.getElementById('recentHistory');
   if (APP_STATE.quizHistory.length === 0) {
     recentContainer.innerHTML = `<div class="empty-state"><p>아직 학습 기록이 없습니다. 문제를 풀어보세요!</p></div>`;
   } else {
     recentContainer.innerHTML = APP_STATE.quizHistory.slice(-5).reverse().map(h => `
-      <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #334155;">
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--c-border);">
         <div>
           <span class="tag tag-info">${h.subject}</span>
-          <span style="margin-left:8px; font-weight:600; color:${h.score >= 80 ? '#22c55e' : h.score >= 60 ? '#f59e0b' : '#ef4444'};">${h.score}점</span>
-          <span style="font-size:13px; color:#94a3b8;">(${h.correct}/${h.total})</span>
+          <span style="margin-left:8px; font-weight:600; color:${h.score >= 80 ? 'var(--c-success)' : h.score >= 60 ? 'var(--c-warning)' : 'var(--c-danger)'};">${h.score}점</span>
+          <span style="font-size:13px; color:var(--c-text-muted);">(${h.correct}/${h.total})</span>
         </div>
-        <span style="font-size:12px; color:#64748b;">${new Date(h.date).toLocaleDateString('ko-KR')}</span>
+        <span style="font-size:12px; color:var(--c-text-light);">${new Date(h.date).toLocaleDateString('ko-KR')}</span>
       </div>
     `).join('');
   }
@@ -2926,11 +3346,14 @@ function clearAllData() {
 
 // ==================== 초기화 ====================
 document.addEventListener('DOMContentLoaded', () => {
+  // 테마 초기화
+  const savedTheme = localStorage.getItem('theme') || 'dark';
+  setTheme(savedTheme);
+
   if (APP_STATE.apiKey) {
     document.getElementById('apiKeyInput').value = APP_STATE.apiKey;
   }
 
-  // 과목 셀렉터 초기화
   refreshAllSubjectSelectors();
   renderSubjectManager();
   renderSubTopicManager();
@@ -2942,13 +3365,11 @@ document.addEventListener('DOMContentLoaded', () => {
     renderAnalysisResult(APP_STATE.analysisData);
   }
 
-  // Firebase 초기화
   const fbConfig = getFirebaseConfig();
   if (fbConfig) {
     initFirebase(fbConfig);
   }
 
-  // 모달 외부 클릭 닫기
   document.querySelectorAll('.modal-overlay').forEach(overlay => {
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) overlay.classList.remove('show');
