@@ -813,8 +813,10 @@ body.mode-ncs .cs-only { display: none !important; }
     <h1 class="page-title">취약점 관리</h1>
     <p class="page-desc">오답 분석을 통해 취약한 분야를 파악하고 집중 학습합니다</p>
 
-    <div style="margin-bottom:16px;">
+    <div style="display:flex; gap:12px; margin-bottom:16px; flex-wrap:wrap; align-items:center;">
       <select class="select subject-filter-select" id="weaknessSubjectFilter" onchange="renderWeaknessList()" style="max-width:200px;"></select>
+      <button class="btn btn-primary" onclick="generateAllWeaknessConcepts()">📖 전체 개념 정리</button>
+      <button class="btn btn-warning" onclick="generateAllWeaknessQuiz()">✏️ 전체 문제 생성</button>
     </div>
 
     <div class="tabs">
@@ -3260,6 +3262,240 @@ function deleteWeakness(id) {
   renderWeaknessList();
   updateWeaknessBadge();
   showToast('취약점이 삭제되었습니다.', 'info');
+}
+
+// ==================== 전체 취약점 개념 정리 ====================
+async function generateAllWeaknessConcepts() {
+  const weaknesses = getState().weaknesses;
+  if (weaknesses.length === 0) {
+    showToast('저장된 취약점이 없습니다.', 'error');
+    return;
+  }
+
+  const modal = document.getElementById('weaknessSettingsModal');
+  document.getElementById('weaknessSettingsTitle').textContent = `전체 취약점 개념 정리 (${weaknesses.length}개)`;
+  document.getElementById('weaknessSettingsContent').innerHTML = `
+    <p style="font-size:13px; color:var(--c-text-muted); margin-bottom:16px;">
+      ${weaknesses.map(w => `<span class="tag tag-danger" style="margin:2px;">${w.topic} (${w.count}회)</span>`).join(' ')}
+    </p>
+    <div class="form-group">
+      <label class="form-label">정리 수준</label>
+      <select class="select" id="allWConceptLevel">
+        <option value="basic">기본 개념 정리</option>
+        <option value="detailed" selected>상세 개념 정리 (추천)</option>
+        <option value="deep">심층 개념 정리 (응용 대비)</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" onclick="executeAllWeaknessConcepts()" style="width:100%;">📖 전체 개념 정리 시작</button>
+  `;
+  modal.classList.add('show');
+}
+
+async function executeAllWeaknessConcepts() {
+  closeModal('weaknessSettingsModal');
+  const level = document.getElementById('allWConceptLevel').value;
+  const weaknesses = getState().weaknesses;
+
+  showToast(`${weaknesses.length}개 취약점 개념 정리를 시작합니다...`, 'info');
+
+  const results = [];
+  for (let i = 0; i < weaknesses.length; i++) {
+    showToast(`[${i + 1}/${weaknesses.length}] "${weaknesses[i].topic}" 정리 중...`, 'info');
+    try {
+      await generateWeaknessConcept(weaknesses[i].id, level);
+      const latest = getState().weaknessConcepts[getState().weaknessConcepts.length - 1];
+      if (latest) results.push({ subTopic: weaknesses[i].topic, content: latest.content });
+    } catch (e) {
+      results.push({ subTopic: weaknesses[i].topic, content: `생성 실패: ${e.message}` });
+    }
+  }
+
+  // 탭 뷰로 한번에 보기
+  if (results.length > 0) {
+    openTabbedConceptViewPage('전체 취약점 개념 정리', '취약점', results);
+  }
+  showToast(`전체 취약점 개념 정리 완료! (${results.length}개)`, 'success');
+}
+
+// ==================== 전체 취약점 문제 생성 ====================
+async function generateAllWeaknessQuiz() {
+  const weaknesses = getState().weaknesses;
+  if (weaknesses.length === 0) {
+    showToast('저장된 취약점이 없습니다.', 'error');
+    return;
+  }
+
+  const modal = document.getElementById('weaknessSettingsModal');
+  document.getElementById('weaknessSettingsTitle').textContent = `전체 취약점 문제 생성 (${weaknesses.length}개)`;
+  document.getElementById('weaknessSettingsContent').innerHTML = `
+    <p style="font-size:13px; color:var(--c-text-muted); margin-bottom:16px;">
+      ${weaknesses.map(w => `<span class="tag tag-danger" style="margin:2px;">${w.topic} (${w.count}회)</span>`).join(' ')}
+    </p>
+    <div class="form-group">
+      <label class="form-label">취약점당 문제 수</label>
+      <select class="select" id="allWQuizCount">
+        <option value="3">3문제</option>
+        <option value="5" selected>5문제</option>
+        <option value="10">10문제</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">난이도</label>
+      <select class="select" id="allWQuizDiff">
+        <option value="쉬움">쉬움</option>
+        <option value="보통" selected>보통</option>
+        <option value="어려움">어려움</option>
+        <option value="랜덤">랜덤</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">변형 단계</label>
+      <select class="select" id="allWQuizVar">
+        <option value="1">1 - 유사 문제</option>
+        <option value="2">2 - 약간 변형</option>
+        <option value="3" selected>3 - 보통 변형</option>
+        <option value="4">4 - 많은 변형</option>
+        <option value="5">5 - 완전히 다른 각도</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" onclick="executeAllWeaknessQuiz()" style="width:100%;">✏️ 전체 문제 생성 시작</button>
+  `;
+  modal.classList.add('show');
+}
+
+async function executeAllWeaknessQuiz() {
+  closeModal('weaknessSettingsModal');
+  const count = parseInt(document.getElementById('allWQuizCount').value);
+  const difficulty = document.getElementById('allWQuizDiff').value;
+  const variation = parseInt(document.getElementById('allWQuizVar').value);
+  const weaknesses = getState().weaknesses;
+
+  showToast(`${weaknesses.length}개 취약점 문제 생성을 시작합니다...`, 'info');
+
+  const allQuestions = [];
+  for (let i = 0; i < weaknesses.length; i++) {
+    showToast(`[${i + 1}/${weaknesses.length}] "${weaknesses[i].topic}" 문제 생성 중...`, 'info');
+    try {
+      await generateWeaknessQuizSingle(weaknesses[i].id, count, difficulty, variation, true);
+      const latest = getState().weaknessQuizzes[getState().weaknessQuizzes.length - 1];
+      if (latest && latest.questions) {
+        latest.questions.forEach(q => {
+          allQuestions.push({ ...q, _weaknessTopic: weaknesses[i].topic });
+        });
+      }
+    } catch (e) {
+      showToast(`"${weaknesses[i].topic}" 문제 생성 실패`, 'error');
+    }
+  }
+
+  if (allQuestions.length > 0) {
+    closeModal('weaknessQuizModal');
+    openAllWeaknessQuizPage(allQuestions);
+    showToast(`전체 취약점 문제 ${allQuestions.length}개 생성 완료!`, 'success');
+  }
+}
+
+function openAllWeaknessQuizPage(questions) {
+  var isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+  var bg = isDark ? '#0f172a' : '#f8fafc';
+  var cardBg = isDark ? '#1e293b' : '#ffffff';
+  var textColor = isDark ? '#f1f5f9' : '#1e293b';
+  var mutedColor = isDark ? '#94a3b8' : '#64748b';
+  var borderColor = isDark ? '#334155' : '#e2e8f0';
+  var hoverBg = isDark ? '#334155' : '#f1f5f9';
+  var primaryColor = isDark ? '#818cf8' : '#6366f1';
+  var successColor = isDark ? '#34d399' : '#10b981';
+  var dangerColor = isDark ? '#f87171' : '#ef4444';
+  var warningColor = isDark ? '#fbbf24' : '#f59e0b';
+
+  var questionsHtml = questions.map(function(q, i) {
+    var diffColor = q.difficulty === '어려움' ? dangerColor : q.difficulty === '보통' ? warningColor : successColor;
+    return '<div class="quiz-q" id="aq-' + i + '">'
+      + '<div class="q-num">문제 ' + (i + 1) + ' <span style="background:rgba(129,140,248,0.15);color:' + primaryColor + ';padding:2px 8px;border-radius:4px;font-size:11px;margin-left:6px;">' + (q._weaknessTopic || '') + '</span>'
+      + ' <span style="background:rgba(0,0,0,0.1);color:' + diffColor + ';padding:2px 8px;border-radius:4px;font-size:11px;">' + (q.difficulty || '') + '</span></div>'
+      + '<div class="q-text">' + q.question + '</div>'
+      + '<div class="q-opts">'
+      + q.options.map(function(opt, j) {
+        return '<div class="q-opt" onclick="selectAQ(' + i + ',' + j + ')" id="aqo-' + i + '-' + j + '">'
+          + '<div class="q-num-circle">' + (j + 1) + '</div><div>' + opt + '</div></div>';
+      }).join('')
+      + '</div>'
+      + '<div class="q-exp" id="aqe-' + i + '"><div style="font-weight:700;color:' + warningColor + ';margin-bottom:6px;">📝 해설</div><div style="white-space:pre-wrap;line-height:1.8;">' + (q.explanation || '') + '</div></div>'
+      + '</div>';
+  }).join('');
+
+  var answersJson = JSON.stringify(questions.map(function(q) { return q.answer; }));
+
+  var pageHtml = '<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">'
+    + '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
+    + '<title>전체 취약점 문제 (' + questions.length + '문제)</title>'
+    + '<style>'
+    + '* { margin:0; padding:0; box-sizing:border-box; }'
+    + 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", sans-serif; background:' + bg + '; color:' + textColor + '; }'
+    + '.topbar { position:sticky; top:0; z-index:10; background:' + cardBg + '; border-bottom:1px solid ' + borderColor + '; padding:16px 40px; display:flex; align-items:center; gap:16px; box-shadow:0 2px 8px rgba(0,0,0,0.15); flex-wrap:wrap; }'
+    + '.topbar h1 { font-size:20px; font-weight:700; }'
+    + '.topbar .tag { padding:4px 12px; border-radius:4px; font-size:11px; font-weight:700; }'
+    + '.topbar button { padding:8px 20px; border:none; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer; }'
+    + '.btn-submit { background:' + successColor + '; color:#052e16; }'
+    + '.btn-close { background:' + hoverBg + '; color:' + textColor + '; margin-left:auto; }'
+    + '.content { max-width:860px; margin:0 auto; padding:30px; }'
+    + '.result-banner { text-align:center; padding:30px; background:' + cardBg + '; border:1px solid ' + borderColor + '; border-radius:10px; margin-bottom:24px; display:none; }'
+    + '.result-score { font-size:56px; font-weight:800; color:' + primaryColor + '; }'
+    + '.result-label { font-size:14px; color:' + mutedColor + '; margin-top:6px; }'
+    + '.quiz-q { background:' + cardBg + '; border:1px solid ' + borderColor + '; border-radius:10px; padding:24px; margin-bottom:16px; }'
+    + '.q-num { color:' + primaryColor + '; font-size:12px; font-weight:700; margin-bottom:8px; text-transform:uppercase; }'
+    + '.q-text { font-size:15px; line-height:1.8; margin-bottom:16px; white-space:pre-wrap; }'
+    + '.q-opts { display:flex; flex-direction:column; gap:8px; }'
+    + '.q-opt { display:flex; align-items:flex-start; gap:12px; padding:12px 16px; border-radius:6px; cursor:pointer; border:1px solid ' + borderColor + '; transition:all 0.2s; line-height:1.6; }'
+    + '.q-opt:hover { border-color:' + primaryColor + '; background:rgba(129,140,248,0.08); }'
+    + '.q-opt.selected { border-color:' + primaryColor + '; background:rgba(129,140,248,0.08); }'
+    + '.q-opt.correct { border-color:' + successColor + '; background:rgba(52,211,153,0.08); }'
+    + '.q-opt.wrong { border-color:' + dangerColor + '; background:rgba(248,113,113,0.08); }'
+    + '.q-num-circle { min-width:30px; height:30px; border-radius:6px; background:' + hoverBg + '; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0; transition:all 0.2s; }'
+    + '.q-opt.selected .q-num-circle { background:' + primaryColor + '; color:white; }'
+    + '.q-opt.correct .q-num-circle { background:' + successColor + '; color:white; }'
+    + '.q-opt.wrong .q-num-circle { background:' + dangerColor + '; color:white; }'
+    + '.q-exp { margin-top:16px; padding:16px; background:' + bg + '; border-radius:6px; border-left:3px solid ' + warningColor + '; display:none; }'
+    + '.q-exp.show { display:block; }'
+    + '@media(max-width:768px){.topbar{padding:12px 16px;flex-wrap:wrap;gap:8px;}.topbar h1{font-size:16px;}.content{padding:16px 12px;}.quiz-q{padding:16px;}.q-text{font-size:14px;}.q-opt{padding:10px 12px;gap:10px;}.q-num-circle{min-width:26px;height:26px;font-size:11px;}}'
+    + '</style></head><body>'
+    + '<div class="topbar"><h1>전체 취약점 문제</h1>'
+    + '<span class="tag" style="background:rgba(248,113,113,0.15);color:' + dangerColor + ';">' + questions.length + '문제</span>'
+    + '<button class="btn-submit" onclick="submitAll()">📝 채점하기</button>'
+    + '<button class="btn-close" onclick="window.close()">✕ 닫기</button></div>'
+    + '<div class="content">'
+    + '<div class="result-banner" id="resultBanner"><div class="result-score" id="resultScore"></div><div class="result-label" id="resultLabel"></div></div>'
+    + questionsHtml
+    + '</div>'
+    + '<script>'
+    + 'var answers = ' + answersJson + ';'
+    + 'var userAnswers = {};'
+    + 'function selectAQ(qi, oi) {'
+    + '  if(document.querySelector("#aq-"+qi+" .q-opt.correct")) return;'
+    + '  document.querySelectorAll("#aq-"+qi+" .q-opt").forEach(function(e){e.classList.remove("selected");});'
+    + '  document.getElementById("aqo-"+qi+"-"+oi).classList.add("selected");'
+    + '  userAnswers[qi]=oi;'
+    + '}'
+    + 'function submitAll() {'
+    + '  var total=answers.length, correct=0;'
+    + '  answers.forEach(function(ans, i) {'
+    + '    document.getElementById("aqo-"+i+"-"+ans).classList.add("correct");'
+    + '    if(userAnswers[i]===ans) { correct++; }'
+    + '    else if(userAnswers[i]!==undefined) { document.getElementById("aqo-"+i+"-"+userAnswers[i]).classList.add("wrong"); }'
+    + '    document.getElementById("aqe-"+i).classList.add("show");'
+    + '    document.querySelectorAll("#aq-"+i+" .q-opt").forEach(function(e){e.style.pointerEvents="none";});'
+    + '  });'
+    + '  var score=Math.round(correct/total*100);'
+    + '  document.getElementById("resultScore").textContent=score+"점";'
+    + '  document.getElementById("resultLabel").textContent=correct+"/"+total+" 정답";'
+    + '  document.getElementById("resultBanner").style.display="block";'
+    + '  window.scrollTo(0,0);'
+    + '}'
+    + '<\/script></body></html>';
+
+  var newTab = window.open('', '_blank');
+  newTab.document.write(pageHtml);
+  newTab.document.close();
 }
 
 function renderWeaknessConceptCollection() {
