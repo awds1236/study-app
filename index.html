@@ -529,15 +529,20 @@ body {
 
 /* 모드별 표시/숨김 */
 body.mode-cs .exam-only { display: none !important; }
+body.mode-cs .ncs-only { display: none !important; }
 body.mode-exam .cs-only { display: none !important; }
+body.mode-exam .ncs-only { display: none !important; }
+body.mode-ncs .exam-only { display: none !important; }
+body.mode-ncs .cs-only { display: none !important; }
 </style>
 </head>
 <body>
 
 <!-- 모바일 상단 모드 바 -->
 <div class="mobile-mode-bar" style="display:none;">
-  <button class="mode-btn active" onclick="switchMode('exam')">📄 기출 분석</button>
-  <button class="mode-btn" onclick="switchMode('cs')">💻 전산학 학습</button>
+  <button class="mode-btn active" onclick="switchMode('exam')">📄 기출분석</button>
+  <button class="mode-btn" onclick="switchMode('cs')">💻 전산학</button>
+  <button class="mode-btn" onclick="switchMode('ncs')">📋 NCS</button>
 </div>
 
 <!-- 사이드바 -->
@@ -547,14 +552,15 @@ body.mode-exam .cs-only { display: none !important; }
     <small>9급 공무원 전산직 시험 대비</small>
   </div>
   <div class="mode-toggle">
-    <button class="mode-btn active" onclick="switchMode('exam')">📄 기출 분석</button>
-    <button class="mode-btn" onclick="switchMode('cs')">💻 전산학 학습</button>
+    <button class="mode-btn active" onclick="switchMode('exam')">📄 기출분석</button>
+    <button class="mode-btn" onclick="switchMode('cs')">💻 전산학</button>
+    <button class="mode-btn" onclick="switchMode('ncs')">📋 NCS</button>
   </div>
   <div class="nav-menu">
     <div class="nav-item active" onclick="showPage('home')">
       <span class="icon">🏠</span><span>홈</span>
     </div>
-    <div class="nav-item exam-only" onclick="showPage('upload')">
+    <div class="nav-item upload-nav" onclick="showPage('upload')">
       <span class="icon">📄</span><span>문제 업로드</span>
     </div>
     <div class="nav-item" onclick="showPage('concepts')">
@@ -593,13 +599,9 @@ body.mode-exam .cs-only { display: none !important; }
     <h1 class="page-title">대시보드</h1>
     <p class="page-desc">학습 현황을 한눈에 확인하세요</p>
     <div class="stats-grid">
-      <div class="stat-card exam-only">
+      <div class="stat-card" id="statUploadCard">
         <div class="stat-value" id="statUploaded">0</div>
-        <div class="stat-label">업로드된 문제 파일</div>
-      </div>
-      <div class="stat-card cs-only">
-        <div class="stat-value" id="statCsConcepts">0</div>
-        <div class="stat-label">생성된 개념 정리</div>
+        <div class="stat-label" id="statUploadLabel">업로드된 문제 파일</div>
       </div>
       <div class="stat-card">
         <div class="stat-value" id="statSolved">0</div>
@@ -617,8 +619,8 @@ body.mode-exam .cs-only { display: none !important; }
     <div class="card">
       <div class="card-title">📌 빠른 시작</div>
       <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-        <button class="btn btn-primary exam-only" onclick="showPage('upload')">📄 문제 업로드</button>
-        <button class="btn btn-primary cs-only" onclick="showPage('concepts')">📖 개념 정리</button>
+        <button class="btn btn-primary upload-nav" onclick="showPage('upload')">📄 문제 업로드</button>
+        <button class="btn btn-primary" onclick="showPage('concepts')">📖 개념 정리</button>
         <button class="btn btn-success" onclick="showPage('quiz')">✏️ 문제 풀기</button>
         <button class="btn btn-warning" onclick="showPage('weakness')">🎯 취약점 학습</button>
       </div>
@@ -672,8 +674,7 @@ body.mode-exam .cs-only { display: none !important; }
   <!-- ===== 개념 정리 ===== -->
   <div class="page" id="page-concepts">
     <h1 class="page-title">개념 정리</h1>
-    <p class="page-desc exam-only">분석된 문제 유형별 핵심 개념을 정리합니다</p>
-    <p class="page-desc cs-only">전산학 과목별 핵심 개념을 정리합니다 (파일 업로드 불필요)</p>
+    <p class="page-desc">과목별 핵심 개념을 정리합니다</p>
 
     <div class="card">
       <div class="form-row">
@@ -695,7 +696,7 @@ body.mode-exam .cs-only { display: none !important; }
       </div>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
         <button class="btn btn-primary" onclick="generateConcept()">📖 개념 정리 생성</button>
-        <button class="btn btn-secondary exam-only" onclick="generateConceptFromAnalysis()">📊 분석 결과 기반 정리</button>
+        <button class="btn btn-secondary analysis-btn" onclick="generateConceptFromAnalysis()">📊 분석 결과 기반 정리</button>
       </div>
     </div>
 
@@ -773,7 +774,7 @@ body.mode-exam .cs-only { display: none !important; }
       </div>
       <div style="display: flex; gap: 12px; flex-wrap: wrap;">
         <button class="btn btn-primary" onclick="generateQuiz()">✏️ 문제 생성</button>
-        <button class="btn btn-warning exam-only" onclick="generateWeaknessQuiz()">🎯 취약점 기반 문제 생성</button>
+        <button class="btn btn-warning" onclick="generateWeaknessQuiz()">🎯 취약점 기반 문제 생성</button>
       </div>
     </div>
 
@@ -1042,6 +1043,9 @@ let firebaseDb = null;
 let autoSyncEnabled = localStorage.getItem('auto_sync') !== 'false';
 let isSyncing = false;
 
+// NCS 기본 과목
+const NCS_DEFAULT_SUBJECTS = ['의사소통능력', '수리능력', '문제해결능력', '자원관리능력', '정보능력', '조직이해능력', '자기개발능력', '직업윤리', '기술능력', '대인관계능력'];
+
 function getFirebaseConfig() {
   try { return JSON.parse(localStorage.getItem('firebase_config') || 'null'); }
   catch { return null; }
@@ -1189,6 +1193,28 @@ async function syncToCloud(silent = false) {
       analysisData: APP_STATE.analysisData,
       previousQuestions: APP_STATE.previousQuestions,
       uploadCount: localStorage.getItem('upload_count') || '0',
+      // CS 모드 데이터
+      cs_subjects: CS_STATE.subjects,
+      cs_subTopics: CS_STATE.subTopics,
+      cs_concepts: CS_STATE.concepts,
+      cs_weaknesses: CS_STATE.weaknesses,
+      cs_weaknessConcepts: CS_STATE.weaknessConcepts,
+      cs_weaknessQuizzes: CS_STATE.weaknessQuizzes,
+      cs_quizHistory: CS_STATE.quizHistory,
+      cs_generatedQuizzes: CS_STATE.generatedQuizzes,
+      cs_previousQuestions: CS_STATE.previousQuestions,
+      // NCS 모드 데이터
+      ncs_subjects: NCS_STATE.subjects,
+      ncs_subTopics: NCS_STATE.subTopics,
+      ncs_analysisData: NCS_STATE.analysisData,
+      ncs_concepts: NCS_STATE.concepts,
+      ncs_weaknesses: NCS_STATE.weaknesses,
+      ncs_weaknessConcepts: NCS_STATE.weaknessConcepts,
+      ncs_weaknessQuizzes: NCS_STATE.weaknessQuizzes,
+      ncs_quizHistory: NCS_STATE.quizHistory,
+      ncs_generatedQuizzes: NCS_STATE.generatedQuizzes,
+      ncs_previousQuestions: NCS_STATE.previousQuestions,
+      ncs_uploadCount: localStorage.getItem('ncs_upload_count') || '0',
       updatedAt: Date.now()
     };
     await firebaseDb.collection('users').doc(firebaseAuth.currentUser.uid).set(data, { merge: true });
@@ -1236,6 +1262,28 @@ async function syncFromCloud(silent = false) {
     if (data.analysisData) APP_STATE.analysisData = data.analysisData;
     if (data.previousQuestions) APP_STATE.previousQuestions = data.previousQuestions;
     if (data.uploadCount) localStorage.setItem('upload_count', data.uploadCount);
+    // CS 모드 복원
+    if (data.cs_subjects?.length) CS_STATE.subjects = data.cs_subjects;
+    if (data.cs_subTopics) CS_STATE.subTopics = data.cs_subTopics;
+    if (data.cs_concepts) CS_STATE.concepts = data.cs_concepts;
+    if (data.cs_weaknesses) CS_STATE.weaknesses = data.cs_weaknesses;
+    if (data.cs_weaknessConcepts) CS_STATE.weaknessConcepts = data.cs_weaknessConcepts;
+    if (data.cs_weaknessQuizzes) CS_STATE.weaknessQuizzes = data.cs_weaknessQuizzes;
+    if (data.cs_quizHistory) CS_STATE.quizHistory = data.cs_quizHistory;
+    if (data.cs_generatedQuizzes) CS_STATE.generatedQuizzes = data.cs_generatedQuizzes;
+    if (data.cs_previousQuestions) CS_STATE.previousQuestions = data.cs_previousQuestions;
+    // NCS 모드 복원
+    if (data.ncs_subjects?.length) NCS_STATE.subjects = data.ncs_subjects;
+    if (data.ncs_subTopics) NCS_STATE.subTopics = data.ncs_subTopics;
+    if (data.ncs_analysisData) NCS_STATE.analysisData = data.ncs_analysisData;
+    if (data.ncs_concepts) NCS_STATE.concepts = data.ncs_concepts;
+    if (data.ncs_weaknesses) NCS_STATE.weaknesses = data.ncs_weaknesses;
+    if (data.ncs_weaknessConcepts) NCS_STATE.weaknessConcepts = data.ncs_weaknessConcepts;
+    if (data.ncs_weaknessQuizzes) NCS_STATE.weaknessQuizzes = data.ncs_weaknessQuizzes;
+    if (data.ncs_quizHistory) NCS_STATE.quizHistory = data.ncs_quizHistory;
+    if (data.ncs_generatedQuizzes) NCS_STATE.generatedQuizzes = data.ncs_generatedQuizzes;
+    if (data.ncs_previousQuestions) NCS_STATE.previousQuestions = data.ncs_previousQuestions;
+    if (data.ncs_uploadCount) localStorage.setItem('ncs_upload_count', data.ncs_uploadCount);
 
     saveState();
     refreshAllSubjectSelectors();
@@ -1286,7 +1334,6 @@ const APP_STATE = {
   subjects: safeParseArray('subjects').length > 0 ? safeParseArray('subjects') : [...DEFAULT_SUBJECTS],
   subTopics: (() => {
     const saved = safeParseJSON('sub_topics') || {};
-    // 기본 세부과목이 없으면 자동 추가
     for (const [subj, topics] of Object.entries(DEFAULT_SUBTOPICS)) {
       if (!saved[subj] || saved[subj].length === 0) {
         saved[subj] = [...topics];
@@ -1307,20 +1354,65 @@ const APP_STATE = {
   previousQuestions: safeParseArray('previous_questions')
 };
 
-// ==================== 과목 관리 ====================
-function saveSubjects() {
-  localStorage.setItem('subjects', JSON.stringify(APP_STATE.subjects));
+// ==================== 전산학 학습 모드 별도 데이터 ====================
+const CS_STATE = {
+  subjects: safeParseArray('cs_subjects').length > 0 ? safeParseArray('cs_subjects') : [...DEFAULT_SUBJECTS],
+  subTopics: (() => {
+    const saved = safeParseJSON('cs_sub_topics') || {};
+    for (const [subj, topics] of Object.entries(DEFAULT_SUBTOPICS)) {
+      if (!saved[subj] || saved[subj].length === 0) {
+        saved[subj] = [...topics];
+      }
+    }
+    return saved;
+  })(),
+  concepts: safeParseArray('cs_concepts'),
+  weaknesses: safeParseArray('cs_weaknesses'),
+  weaknessConcepts: safeParseArray('cs_weakness_concepts'),
+  weaknessQuizzes: safeParseArray('cs_weakness_quizzes'),
+  quizHistory: safeParseArray('cs_quiz_history'),
+  generatedQuizzes: safeParseArray('cs_generated_quizzes'),
+  currentQuiz: null,
+  currentAnswers: {},
+  previousQuestions: safeParseArray('cs_previous_questions')
+};
+
+// ==================== NCS 직업기초능력 모드 별도 데이터 ====================
+const NCS_STATE = {
+  subjects: safeParseArray('ncs_subjects').length > 0 ? safeParseArray('ncs_subjects') : [...NCS_DEFAULT_SUBJECTS],
+  subTopics: safeParseJSON('ncs_sub_topics') || {},
+  uploadedFiles: [],
+  analysisData: safeParseJSON('ncs_analysis_data'),
+  concepts: safeParseArray('ncs_concepts'),
+  weaknesses: safeParseArray('ncs_weaknesses'),
+  weaknessConcepts: safeParseArray('ncs_weakness_concepts'),
+  weaknessQuizzes: safeParseArray('ncs_weakness_quizzes'),
+  quizHistory: safeParseArray('ncs_quiz_history'),
+  generatedQuizzes: safeParseArray('ncs_generated_quizzes'),
+  currentQuiz: null,
+  currentAnswers: {},
+  previousQuestions: safeParseArray('ncs_previous_questions')
+};
+
+let currentMode = localStorage.getItem('study_mode') || 'exam';
+
+function getState() {
+  if (currentMode === 'cs') return CS_STATE;
+  if (currentMode === 'ncs') return NCS_STATE;
+  return APP_STATE;
 }
 
+// ==================== 과목 관리 ====================
 function addSubject(name) {
   name = name.trim();
   if (!name) return;
-  if (APP_STATE.subjects.includes(name)) {
+  const state = getState();
+  if (state.subjects.includes(name)) {
     showToast('이미 존재하는 과목입니다.', 'error');
     return;
   }
-  APP_STATE.subjects.push(name);
-  saveSubjects();
+  state.subjects.push(name);
+  saveState();
   refreshAllSubjectSelectors();
   renderSubjectManager();
   showToast(`"${name}" 과목이 추가되었습니다!`, 'success');
@@ -1328,8 +1420,9 @@ function addSubject(name) {
 
 function removeSubject(name) {
   if (!confirm(`"${name}" 과목을 삭제하시겠습니까?\n(기존 데이터는 유지됩니다)`)) return;
-  APP_STATE.subjects = APP_STATE.subjects.filter(s => s !== name);
-  saveSubjects();
+  const state = getState();
+  state.subjects = state.subjects.filter(s => s !== name);
+  saveState();
   refreshAllSubjectSelectors();
   renderSubjectManager();
   showToast(`"${name}" 과목이 삭제되었습니다.`, 'info');
@@ -1338,7 +1431,8 @@ function removeSubject(name) {
 function renderSubjectManager() {
   const container = document.getElementById('subjectManagerList');
   if (!container) return;
-  container.innerHTML = APP_STATE.subjects.map(s => `
+  const state = getState();
+  container.innerHTML = state.subjects.map(s => `
     <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:var(--c-bkg-body); border:1px solid var(--c-border); border-radius:var(--c-radius); margin-bottom:4px;">
       <span style="font-weight:600;">${s}</span>
       <button class="btn btn-sm btn-danger" onclick="removeSubject('${s}')">삭제</button>
@@ -1348,7 +1442,8 @@ function renderSubjectManager() {
 
 function buildSubjectOptions(includeAll = false) {
   let html = includeAll ? '<option value="">전체</option>' : '';
-  APP_STATE.subjects.forEach(s => {
+  const state = getState();
+  state.subjects.forEach(s => {
     html += `<option value="${s}">${s}</option>`;
   });
   return html;
@@ -1370,7 +1465,8 @@ function refreshAllSubjectSelectors() {
 
 // ==================== 세부과목 관리 ====================
 function getSubTopics(subject) {
-  return APP_STATE.subTopics[subject] || [];
+  const state = getState();
+  return state.subTopics[subject] || [];
 }
 
 function buildSubTopicOptions(subject) {
@@ -1393,13 +1489,14 @@ function refreshSubTopicSelector(subjectSelectId, subTopicSelectId) {
 function renderSubTopicManager() {
   const container = document.getElementById('subTopicManagerList');
   if (!container) return;
-  if (Object.keys(APP_STATE.subTopics).length === 0) {
+  const state = getState();
+  if (Object.keys(state.subTopics).length === 0) {
     container.innerHTML = '<div style="font-size:13px; color:var(--c-text-muted);">설정 > 과목 관리에서 과목을 추가하면 세부과목을 설정할 수 있습니다.</div>';
     return;
   }
   let html = '';
-  for (const [subject, topics] of Object.entries(APP_STATE.subTopics)) {
-    if (!APP_STATE.subjects.includes(subject)) continue;
+  for (const [subject, topics] of Object.entries(state.subTopics)) {
+    if (!state.subjects.includes(subject)) continue;
     html += `<div style="margin-bottom:12px;">
       <div style="font-weight:700; color:var(--c-primary); margin-bottom:6px;">${subject}</div>
       <div style="display:flex; flex-wrap:wrap; gap:6px;">
@@ -1422,26 +1519,29 @@ function renderSubTopicManager() {
 function addSubTopicManual(subject, topic) {
   topic = topic.trim();
   if (!topic) return;
-  if (!APP_STATE.subTopics[subject]) APP_STATE.subTopics[subject] = [];
-  if (APP_STATE.subTopics[subject].includes(topic)) {
+  const state = getState();
+  if (!state.subTopics[subject]) state.subTopics[subject] = [];
+  if (state.subTopics[subject].includes(topic)) {
     showToast('이미 존재하는 세부과목입니다.', 'error');
     return;
   }
-  APP_STATE.subTopics[subject].push(topic);
+  state.subTopics[subject].push(topic);
   saveState();
   renderSubTopicManager();
   showToast(`"${topic}" 세부과목이 추가되었습니다.`, 'success');
 }
 
 function removeSubTopic(subject, topic) {
-  if (!APP_STATE.subTopics[subject]) return;
-  APP_STATE.subTopics[subject] = APP_STATE.subTopics[subject].filter(t => t !== topic);
+  const state = getState();
+  if (!state.subTopics[subject]) return;
+  state.subTopics[subject] = state.subTopics[subject].filter(t => t !== topic);
   saveState();
   renderSubTopicManager();
   showToast(`"${topic}" 세부과목이 삭제되었습니다.`, 'info');
 }
 
 function saveState() {
+  // 기출 분석 모드 데이터 저장
   localStorage.setItem('subjects', JSON.stringify(APP_STATE.subjects));
   localStorage.setItem('sub_topics', JSON.stringify(APP_STATE.subTopics));
   localStorage.setItem('analysis_data', JSON.stringify(APP_STATE.analysisData));
@@ -1452,6 +1552,27 @@ function saveState() {
   localStorage.setItem('quiz_history', JSON.stringify(APP_STATE.quizHistory));
   localStorage.setItem('generated_quizzes', JSON.stringify(APP_STATE.generatedQuizzes));
   localStorage.setItem('previous_questions', JSON.stringify(APP_STATE.previousQuestions));
+  // 전산학 학습 모드 데이터 저장
+  localStorage.setItem('cs_subjects', JSON.stringify(CS_STATE.subjects));
+  localStorage.setItem('cs_sub_topics', JSON.stringify(CS_STATE.subTopics));
+  localStorage.setItem('cs_concepts', JSON.stringify(CS_STATE.concepts));
+  localStorage.setItem('cs_weaknesses', JSON.stringify(CS_STATE.weaknesses));
+  localStorage.setItem('cs_weakness_concepts', JSON.stringify(CS_STATE.weaknessConcepts));
+  localStorage.setItem('cs_weakness_quizzes', JSON.stringify(CS_STATE.weaknessQuizzes));
+  localStorage.setItem('cs_quiz_history', JSON.stringify(CS_STATE.quizHistory));
+  localStorage.setItem('cs_generated_quizzes', JSON.stringify(CS_STATE.generatedQuizzes));
+  localStorage.setItem('cs_previous_questions', JSON.stringify(CS_STATE.previousQuestions));
+  // NCS 직업기초능력 모드 데이터 저장
+  localStorage.setItem('ncs_subjects', JSON.stringify(NCS_STATE.subjects));
+  localStorage.setItem('ncs_sub_topics', JSON.stringify(NCS_STATE.subTopics));
+  localStorage.setItem('ncs_analysis_data', JSON.stringify(NCS_STATE.analysisData));
+  localStorage.setItem('ncs_concepts', JSON.stringify(NCS_STATE.concepts));
+  localStorage.setItem('ncs_weaknesses', JSON.stringify(NCS_STATE.weaknesses));
+  localStorage.setItem('ncs_weakness_concepts', JSON.stringify(NCS_STATE.weaknessConcepts));
+  localStorage.setItem('ncs_weakness_quizzes', JSON.stringify(NCS_STATE.weaknessQuizzes));
+  localStorage.setItem('ncs_quiz_history', JSON.stringify(NCS_STATE.quizHistory));
+  localStorage.setItem('ncs_generated_quizzes', JSON.stringify(NCS_STATE.generatedQuizzes));
+  localStorage.setItem('ncs_previous_questions', JSON.stringify(NCS_STATE.previousQuestions));
   updateDashboard();
   if (autoSyncEnabled && firebaseAuth?.currentUser && !isSyncing) {
     clearTimeout(saveState._syncTimer);
@@ -1552,7 +1673,7 @@ function showToast(msg, type = 'info') {
 
 function showPage(id) {
   // CS 모드에서 upload 페이지 접근 시 concepts로 리다이렉트
-  if (id === 'upload' && document.body.classList.contains('mode-cs')) {
+  if (id === 'upload' && currentMode === 'cs') {
     id = 'concepts';
   }
 
@@ -1569,18 +1690,42 @@ function showPage(id) {
 }
 
 function switchMode(mode) {
-  document.body.classList.remove('mode-exam', 'mode-cs');
+  currentMode = mode;
+  document.body.classList.remove('mode-exam', 'mode-cs', 'mode-ncs');
   document.body.classList.add('mode-' + mode);
   localStorage.setItem('study_mode', mode);
 
   // 모든 mode-btn 업데이트 (사이드바 + 모바일 상단 바)
+  const modeKeywords = { exam: '기출', cs: '전산학', ncs: 'NCS' };
   document.querySelectorAll('.mode-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.textContent.includes(mode === 'exam' ? '기출' : '전산학'));
+    btn.classList.toggle('active', btn.textContent.includes(modeKeywords[mode]));
+  });
+
+  // 업로드 탭 표시/숨김 (exam, ncs만 업로드 가능)
+  const hasUpload = mode === 'exam' || mode === 'ncs';
+  document.querySelectorAll('.upload-nav').forEach(el => {
+    el.style.display = hasUpload ? '' : 'none';
+  });
+  // 분석 결과 기반 정리 버튼 (업로드 가능한 모드만)
+  document.querySelectorAll('.analysis-btn').forEach(el => {
+    el.style.display = hasUpload ? '' : 'none';
   });
 
   // 대시보드 제목 변경
   const pageTitle = document.querySelector('#page-home .page-title');
-  if (pageTitle) pageTitle.textContent = mode === 'cs' ? '전산학 학습 대시보드' : '대시보드';
+  const titles = { exam: '기출 분석 대시보드', cs: '전산학 학습 대시보드', ncs: 'NCS 직업기초능력 대시보드' };
+  if (pageTitle) pageTitle.textContent = titles[mode];
+
+  // 개념 정리 페이지 설명 변경
+  const conceptDesc = document.querySelector('#page-concepts .page-desc');
+  if (conceptDesc) {
+    const descs = {
+      exam: '분석된 문제 유형별 핵심 개념을 정리합니다',
+      cs: '전산학 과목별 핵심 개념을 정리합니다 (파일 업로드 불필요)',
+      ncs: 'NCS 직업기초능력 핵심 개념을 정리합니다'
+    };
+    conceptDesc.textContent = descs[mode];
+  }
 
   // CS 모드에서 upload 페이지에 있었다면 home으로 이동
   const currentPage = document.querySelector('.page.active');
@@ -1588,13 +1733,25 @@ function switchMode(mode) {
     showPage('home');
   }
 
-  // 대시보드 통계 업데이트
-  updateDashboardStats();
+  // 과목 셀렉터 & UI 업데이트
+  refreshAllSubjectSelectors();
+  renderSubjectManager();
+  renderSubTopicManager();
+  renderSavedConcepts();
+  updateDashboard();
 }
 
 function updateDashboardStats() {
-  const statCsConcepts = document.getElementById('statCsConcepts');
-  if (statCsConcepts) statCsConcepts.textContent = APP_STATE.concepts.length;
+  const uploadCard = document.getElementById('statUploadCard');
+  const uploadLabel = document.getElementById('statUploadLabel');
+  if (currentMode === 'cs') {
+    if (uploadLabel) uploadLabel.textContent = '생성된 개념 정리';
+    document.getElementById('statUploaded').textContent = getState().concepts.length;
+  } else {
+    if (uploadLabel) uploadLabel.textContent = '업로드된 문제 파일';
+    const uploadKey = currentMode === 'ncs' ? 'ncs_upload_count' : 'upload_count';
+    document.getElementById('statUploaded').textContent = localStorage.getItem(uploadKey) || '0';
+  }
 }
 
 function closeModal(id) {
@@ -1663,24 +1820,24 @@ function handleFiles(files) {
       showToast(`${file.name}은 PDF가 아닙니다.`, 'error');
       continue;
     }
-    if (APP_STATE.uploadedFiles.find(f => f.name === file.name)) {
+    if (getState().uploadedFiles.find(f => f.name === file.name)) {
       showToast(`${file.name}은 이미 추가되었습니다.`, 'error');
       continue;
     }
-    APP_STATE.uploadedFiles.push(file);
+    getState().uploadedFiles.push(file);
   }
   renderFileList();
 }
 
 function renderFileList() {
   const list = document.getElementById('fileList');
-  if (APP_STATE.uploadedFiles.length === 0) {
+  if (getState().uploadedFiles.length === 0) {
     list.innerHTML = '';
     document.getElementById('analyzeBtn').disabled = true;
     return;
   }
   document.getElementById('analyzeBtn').disabled = false;
-  list.innerHTML = APP_STATE.uploadedFiles.map((f, i) => `
+  list.innerHTML = getState().uploadedFiles.map((f, i) => `
     <div class="file-item">
       <span class="name">📄 ${f.name}</span>
       <span class="size">${(f.size / 1024 / 1024).toFixed(2)} MB</span>
@@ -1690,7 +1847,7 @@ function renderFileList() {
 }
 
 function removeFile(i) {
-  APP_STATE.uploadedFiles.splice(i, 1);
+  getState().uploadedFiles.splice(i, 1);
   renderFileList();
 }
 
@@ -1704,7 +1861,7 @@ async function fileToBase64(file) {
 }
 
 async function analyzeFiles() {
-  if (APP_STATE.uploadedFiles.length === 0) return;
+  if (getState().uploadedFiles.length === 0) return;
 
   const loading = document.getElementById('analyzeLoading');
   const progress = document.getElementById('analyzeProgress');
@@ -1719,17 +1876,20 @@ async function analyzeFiles() {
     progressFill.style.width = '20%';
 
     const pdfDataArray = [];
-    for (let i = 0; i < APP_STATE.uploadedFiles.length; i++) {
-      const base64 = await fileToBase64(APP_STATE.uploadedFiles[i]);
-      pdfDataArray.push({ name: APP_STATE.uploadedFiles[i].name, data: base64 });
-      progressFill.style.width = (20 + (i + 1) / APP_STATE.uploadedFiles.length * 30) + '%';
+    for (let i = 0; i < getState().uploadedFiles.length; i++) {
+      const base64 = await fileToBase64(getState().uploadedFiles[i]);
+      pdfDataArray.push({ name: getState().uploadedFiles[i].name, data: base64 });
+      progressFill.style.width = (20 + (i + 1) / getState().uploadedFiles.length * 30) + '%';
     }
 
     document.getElementById('analyzeLoadingText').textContent = 'AI가 문제를 분석하고 있습니다...';
     progressFill.style.width = '60%';
 
-    const prompt = `당신은 한국 9급 공무원 전산직 시험 전문가입니다.
-업로드된 ${pdfDataArray.length}개의 PDF 파일은 9급 공무원 전산직 시험 기출문제입니다.
+    const analyzeContext = currentMode === 'ncs'
+      ? `당신은 NCS 직업기초능력평가 전문가입니다.\n업로드된 ${pdfDataArray.length}개의 PDF 파일은 NCS 직업기초능력평가 문제입니다.`
+      : `당신은 한국 9급 공무원 전산직 시험 전문가입니다.\n업로드된 ${pdfDataArray.length}개의 PDF 파일은 9급 공무원 전산직 시험 기출문제입니다.`;
+
+    const prompt = `${analyzeContext}
 
 모든 PDF를 분석하여 다음을 JSON 형식으로 반환해주세요:
 
@@ -1774,21 +1934,21 @@ async function analyzeFiles() {
       analysisData = { summary: result, files: [], categories: [], trends: '', recommendations: '' };
     }
 
-    APP_STATE.analysisData = analysisData;
+    getState().analysisData = analysisData;
 
     if (analysisData.categories?.length) {
       let addedCount = 0;
       analysisData.categories.forEach(cat => {
         const subject = cat.subject;
-        if (subject && !APP_STATE.subjects.includes(subject)) {
-          APP_STATE.subjects.push(subject);
+        if (subject && !getState().subjects.includes(subject)) {
+          getState().subjects.push(subject);
         }
         if (subject && cat.topics?.length) {
-          if (!APP_STATE.subTopics[subject]) APP_STATE.subTopics[subject] = [];
+          if (!getState().subTopics[subject]) getState().subTopics[subject] = [];
           cat.topics.forEach(t => {
             const topicName = t.name;
-            if (topicName && !APP_STATE.subTopics[subject].includes(topicName)) {
-              APP_STATE.subTopics[subject].push(topicName);
+            if (topicName && !getState().subTopics[subject].includes(topicName)) {
+              getState().subTopics[subject].push(topicName);
               addedCount++;
             }
           });
@@ -1807,8 +1967,9 @@ async function analyzeFiles() {
     renderAnalysisResult(analysisData);
     showToast('문제 분석이 완료되었습니다!', 'success');
 
-    const prevCount = parseInt(localStorage.getItem('upload_count') || '0');
-    localStorage.setItem('upload_count', prevCount + APP_STATE.uploadedFiles.length);
+    const uploadKey = currentMode === 'ncs' ? 'ncs_upload_count' : 'upload_count';
+    const prevCount = parseInt(localStorage.getItem(uploadKey) || '0');
+    localStorage.setItem(uploadKey, prevCount + getState().uploadedFiles.length);
     updateDashboard();
 
   } catch (e) {
@@ -1924,7 +2085,7 @@ async function generateConcept() {
       type: 'general'
     };
 
-    APP_STATE.concepts.push(concept);
+    getState().concepts.push(concept);
     saveState();
     renderConceptResult(concept);
     renderSavedConcepts();
@@ -1941,8 +2102,11 @@ function buildConceptPrompt(subject, subTopic, keyword, topicLabel) {
     ? `\n세부 분야: ${subTopic}\n이 세부 분야에 대해 매우 깊이 있고 상세하게 다뤄주세요.`
     : (keyword ? '' : '\n이 과목의 전반적인 핵심 내용을 상세하게 정리해주세요.');
 
-  return `당신은 한국 9급 공무원 전산직 시험을 20년간 가르친 최고 전문 강사이자, 전산학 전공 교수입니다.
-당신의 강의는 단순 암기가 아닌, 원리를 이해시켜 어떤 응용 문제가 나와도 풀 수 있게 하는 것으로 유명합니다.
+  const roleDesc = currentMode === 'ncs'
+    ? '당신은 NCS 직업기초능력평가를 20년간 가르친 최고 전문 강사입니다.\n직업기초능력 10개 영역을 깊이 있게 가르치며, 어떤 유형의 문제가 나와도 풀 수 있게 하는 것으로 유명합니다.'
+    : '당신은 한국 9급 공무원 전산직 시험을 20년간 가르친 최고 전문 강사이자, 전산학 전공 교수입니다.\n당신의 강의는 단순 암기가 아닌, 원리를 이해시켜 어떤 응용 문제가 나와도 풀 수 있게 하는 것으로 유명합니다.';
+
+  return `${roleDesc}
 
 다음 주제에 대해 **전산학 전체 지식을 기반으로** 시험 대비용 완벽한 개념 정리를 해주세요:
 ${subject ? `과목: ${subject}` : ''}${subTopicInstruction}
@@ -2041,7 +2205,7 @@ async function generateConceptBySubTopics(subject, subTopics) {
       type: 'comprehensive'
     };
 
-    APP_STATE.concepts.push(concept);
+    getState().concepts.push(concept);
     saveState();
     renderConceptResult(concept);
     renderSavedConcepts();
@@ -2059,7 +2223,7 @@ async function generateAllSubjectsConcept() {
   const loadingText = document.getElementById('conceptLoadingText');
   loading.classList.add('show');
 
-  const allSubjects = APP_STATE.subjects.filter(s => getSubTopics(s).length > 0);
+  const allSubjects = getState().subjects.filter(s => getSubTopics(s).length > 0);
   if (allSubjects.length === 0) {
     showToast('세부과목이 설정된 과목이 없습니다. 설정에서 과목/세부과목을 추가해주세요.', 'error');
     loading.classList.remove('show');
@@ -2094,7 +2258,7 @@ async function generateAllSubjectsConcept() {
       type: 'comprehensive'
     };
 
-    APP_STATE.concepts.push(concept);
+    getState().concepts.push(concept);
     saveState();
     renderConceptResult(concept);
     renderSavedConcepts();
@@ -2108,7 +2272,7 @@ async function generateAllSubjectsConcept() {
 }
 
 async function generateConceptFromAnalysis() {
-  if (!APP_STATE.analysisData) {
+  if (!getState().analysisData) {
     showToast('먼저 문제를 업로드하고 분석해주세요.', 'error');
     return;
   }
@@ -2117,7 +2281,7 @@ async function generateConceptFromAnalysis() {
   loading.classList.add('show');
 
   try {
-    const topicsStr = APP_STATE.analysisData.categories?.map(c =>
+    const topicsStr = getState().analysisData.categories?.map(c =>
       `${c.subject}: ${c.topics?.map(t => t.name).join(', ')}`
     ).join('\n') || '분석 데이터 없음';
 
@@ -2126,7 +2290,7 @@ async function generateConceptFromAnalysis() {
 다음은 기출문제 분석 결과입니다:
 ${topicsStr}
 
-출제 경향: ${APP_STATE.analysisData.trends || '정보 없음'}
+출제 경향: ${getState().analysisData.trends || '정보 없음'}
 
 이 분석 결과를 바탕으로, **기출 범위에만 국한하지 말고** 해당 주제의 전산학 전체 이론을 포괄하여 정리해주세요.
 기출에서 다뤘던 내용은 물론이고, 아직 출제되지 않았지만 관련된 중요 개념들까지 모두 포함하세요.
@@ -2173,7 +2337,7 @@ ${topicsStr}
       type: 'analysis'
     };
 
-    APP_STATE.concepts.push(concept);
+    getState().concepts.push(concept);
     saveState();
     renderConceptResult(concept);
     renderSavedConcepts();
@@ -2206,7 +2370,7 @@ function renderConceptResult(concept) {
 }
 
 function expandConcept(id) {
-  const concept = APP_STATE.concepts.find(c => c.id === id);
+  const concept = getState().concepts.find(c => c.id === id);
   if (!concept) return;
 
   // 세부과목별 탭이 있는 경우
@@ -2341,7 +2505,7 @@ function openTabbedConceptViewPage(title, subject, subTopicContents) {
 }
 
 function deleteConcept(id) {
-  APP_STATE.concepts = APP_STATE.concepts.filter(c => c.id !== id);
+  getState().concepts = getState().concepts.filter(c => c.id !== id);
   saveState();
   document.getElementById('conceptResult').innerHTML = '';
   renderSavedConcepts();
@@ -2352,14 +2516,14 @@ function renderSavedConcepts() {
   const container = document.getElementById('savedConceptsList');
   const card = document.getElementById('savedConceptsCard');
 
-  if (APP_STATE.concepts.length === 0) {
+  if (getState().concepts.length === 0) {
     card.style.display = 'none';
     return;
   }
   card.style.display = 'block';
 
   const grouped = {};
-  APP_STATE.concepts.forEach(c => {
+  getState().concepts.forEach(c => {
     const key = c.subject || '기타';
     if (!grouped[key]) grouped[key] = [];
     grouped[key].push(c);
@@ -2402,7 +2566,7 @@ async function generateQuiz(weaknessTopic = null) {
   document.getElementById('quizArea').style.display = 'none';
   document.getElementById('quizResult').style.display = 'none';
 
-  const prevQSummary = APP_STATE.previousQuestions.slice(-50).map(q => q.summary).join('; ');
+  const prevQSummary = getState().previousQuestions.slice(-50).map(q => q.summary).join('; ');
 
   const randomInstructions = {
     1: '표준적인 문제를 출제하세요.',
@@ -2420,12 +2584,18 @@ async function generateQuiz(weaknessTopic = null) {
     const subTopicInstr = subTopic ? `\n세부 분야: ${subTopic}\n이 세부 분야에 집중하여 관련 문제만 출제하세요.` : '';
 
     // "전체" 선택 시 모든 과목/세부과목 정보 전달
-    const allSubjectsInfo = !subject ? APP_STATE.subjects.map(s => {
+    const allSubjectsInfo = !subject ? getState().subjects.map(s => {
       const subs = getSubTopics(s);
       return `${s}: ${subs.length > 0 ? subs.join(', ') : '전반'}`;
     }).join('\n') : '';
 
-    const prompt = `당신은 한국 9급 공무원 전산직 시험 출제위원입니다.
+    const modeContext = currentMode === 'ncs'
+      ? '당신은 NCS 직업기초능력평가 출제위원입니다.\nNCS 직업기초능력 10개 영역(의사소통능력, 수리능력, 문제해결능력, 자원관리능력, 정보능력, 조직이해능력, 자기개발능력, 직업윤리, 기술능력, 대인관계능력)을 기반으로 출제합니다.'
+      : currentMode === 'cs'
+        ? '당신은 전산학 전공 교수이자 9급 공무원 전산직 시험 출제위원입니다.'
+        : '당신은 한국 9급 공무원 전산직 시험 출제위원입니다.';
+
+    const prompt = `${modeContext}
 랜덤 시드: ${Date.now()}
 
 다음 조건으로 ${count}개의 4지선다 문제를 생성해주세요:
@@ -2435,7 +2605,7 @@ ${difficultyInstr}
 랜덤성 수준: ${randomness}/5 - ${randomInstructions[randomness]}
 ${!subject ? `\n⚠️ 전체 과목 출제 시: 각 과목에서 균등하게 문제를 배분하세요. 각 문제의 "subject" 필드에 해당 과목명을 명시하세요.` : ''}
 
-${APP_STATE.analysisData ? `참고할 기출 분석 데이터: ${JSON.stringify(APP_STATE.analysisData.categories?.slice(0, 3))}` : ''}
+${getState().analysisData ? `참고할 분석 데이터: ${JSON.stringify(getState().analysisData.categories?.slice(0, 3))}` : ''}
 
 중요 규칙:
 1. 정답과 해설은 반드시 정확해야 합니다
@@ -2474,26 +2644,26 @@ ${prevQSummary ? `5. 다음 문제들은 이미 출제되었으니 유사한 문
       return;
     }
 
-    APP_STATE.currentQuiz = {
+    getState().currentQuiz = {
       ...quizData,
       subject: subject || topic || '종합',
       difficulty,
       randomness,
       createdAt: new Date().toISOString()
     };
-    APP_STATE.currentAnswers = {};
+    getState().currentAnswers = {};
 
     quizData.questions.forEach(q => {
-      APP_STATE.previousQuestions.push({ summary: q.question.substring(0, 60), topic: q.topic });
+      getState().previousQuestions.push({ summary: q.question.substring(0, 60), topic: q.topic });
     });
-    if (APP_STATE.previousQuestions.length > 100) {
-      APP_STATE.previousQuestions = APP_STATE.previousQuestions.slice(-100);
+    if (getState().previousQuestions.length > 100) {
+      getState().previousQuestions = getState().previousQuestions.slice(-100);
     }
     saveState();
 
-    APP_STATE.generatedQuizzes.push({
+    getState().generatedQuizzes.push({
       id: generateId(),
-      ...APP_STATE.currentQuiz
+      ...getState().currentQuiz
     });
     saveState();
 
@@ -2507,18 +2677,18 @@ ${prevQSummary ? `5. 다음 문제들은 이미 출제되었으니 유사한 문
 }
 
 function generateWeaknessQuiz() {
-  if (APP_STATE.weaknesses.length === 0) {
+  if (getState().weaknesses.length === 0) {
     showToast('저장된 취약점이 없습니다. 먼저 문제를 풀고 채점하세요.', 'error');
     return;
   }
-  const topics = APP_STATE.weaknesses.map(w => w.topic).join(', ');
+  const topics = getState().weaknesses.map(w => w.topic).join(', ');
   document.getElementById('quizTopic').value = topics;
   generateQuiz();
 }
 
 // 오답 기반 문제 생성
 async function generateQuizFromWrongAnswers() {
-  const wrongTopics = APP_STATE._currentWrongTopics;
+  const wrongTopics = getState()._currentWrongTopics;
   if (!wrongTopics || wrongTopics.length === 0) {
     showToast('오답이 없습니다!', 'info');
     return;
@@ -2566,7 +2736,7 @@ async function executeWrongAnswerQuiz() {
   const count = parseInt(document.getElementById('wrongQuizCount').value);
   const difficulty = document.getElementById('wrongQuizDiff').value;
   const variation = parseInt(document.getElementById('wrongQuizVar').value);
-  const wrongTopics = APP_STATE._currentWrongTopics;
+  const wrongTopics = getState()._currentWrongTopics;
 
   document.getElementById('quizTopic').value = wrongTopics.map(w => w.topic).join(', ');
   document.getElementById('quizCount').value = count;
@@ -2581,8 +2751,8 @@ function renderQuiz(data) {
   document.getElementById('quizResult').style.display = 'none';
   document.getElementById('quizSetup').style.display = 'none';
 
-  document.getElementById('quizInfo').textContent = `${APP_STATE.currentQuiz.subject} · ${data.questions.length}문제`;
-  document.getElementById('quizDiffTag').textContent = APP_STATE.currentQuiz.difficulty;
+  document.getElementById('quizInfo').textContent = `${getState().currentQuiz.subject} · ${data.questions.length}문제`;
+  document.getElementById('quizDiffTag').textContent = getState().currentQuiz.difficulty;
 
   const container = document.getElementById('quizQuestions');
   container.innerHTML = data.questions.map((q, i) => `
@@ -2609,15 +2779,15 @@ function selectAnswer(qIdx, oIdx) {
   if (document.querySelector(`#question-${qIdx} .quiz-option.correct`)) return;
   document.querySelectorAll(`#question-${qIdx} .quiz-option`).forEach(el => el.classList.remove('selected'));
   document.getElementById(`option-${qIdx}-${oIdx}`).classList.add('selected');
-  APP_STATE.currentAnswers[qIdx] = oIdx;
+  getState().currentAnswers[qIdx] = oIdx;
 }
 
 function submitQuiz() {
-  const quiz = APP_STATE.currentQuiz;
+  const quiz = getState().currentQuiz;
   if (!quiz) return;
 
   const total = quiz.questions.length;
-  const answered = Object.keys(APP_STATE.currentAnswers).length;
+  const answered = Object.keys(getState().currentAnswers).length;
 
   if (answered < total) {
     if (!confirm(`${total - answered}문제를 풀지 않았습니다. 채점하시겠습니까?`)) return;
@@ -2627,7 +2797,7 @@ function submitQuiz() {
   const wrongTopics = [];
 
   quiz.questions.forEach((q, i) => {
-    const userAnswer = APP_STATE.currentAnswers[i];
+    const userAnswer = getState().currentAnswers[i];
     const correctAnswer = q.answer;
 
     document.getElementById(`option-${i}-${correctAnswer}`).classList.add('correct');
@@ -2670,30 +2840,30 @@ function submitQuiz() {
     score,
     wrongTopics: wrongTopics.map(w => w.topic)
   };
-  APP_STATE.quizHistory.push(historyEntry);
+  getState().quizHistory.push(historyEntry);
 
-  APP_STATE._currentWrongTopics = wrongTopics;
+  getState()._currentWrongTopics = wrongTopics;
 
   saveState();
   updateDashboard();
 }
 
 async function saveWrongAnswers() {
-  const wrongTopics = APP_STATE._currentWrongTopics;
+  const wrongTopics = getState()._currentWrongTopics;
   if (!wrongTopics || wrongTopics.length === 0) {
     showToast('오답이 없습니다!', 'success');
     return;
   }
 
-  const quizSubject = APP_STATE.currentQuiz?.subject || '기타';
+  const quizSubject = getState().currentQuiz?.subject || '기타';
   wrongTopics.forEach(w => {
-    const existing = APP_STATE.weaknesses.find(x => x.topic === w.topic && x.subject === quizSubject);
+    const existing = getState().weaknesses.find(x => x.topic === w.topic && x.subject === quizSubject);
     if (existing) {
       existing.count++;
       existing.questions.push(w.question);
       existing.lastDate = new Date().toISOString();
     } else {
-      APP_STATE.weaknesses.push({
+      getState().weaknesses.push({
         id: generateId(),
         subject: quizSubject,
         topic: w.topic,
@@ -2713,8 +2883,8 @@ function resetQuiz() {
   document.getElementById('quizSetup').style.display = 'block';
   document.getElementById('quizArea').style.display = 'none';
   document.getElementById('quizResult').style.display = 'none';
-  APP_STATE.currentQuiz = null;
-  APP_STATE.currentAnswers = {};
+  getState().currentQuiz = null;
+  getState().currentAnswers = {};
 }
 
 // ==================== 취약점 관리 ====================
@@ -2733,7 +2903,7 @@ function renderWeaknessList() {
   const container = document.getElementById('weaknessList');
   const filterSubject = document.getElementById('weaknessSubjectFilter')?.value || '';
 
-  let filtered = APP_STATE.weaknesses;
+  let filtered = getState().weaknesses;
   if (filterSubject) {
     filtered = filtered.filter(w => w.subject === filterSubject);
   }
@@ -2767,7 +2937,7 @@ function renderWeaknessList() {
 
 // 취약점 개념 정리 설정 모달
 function showWeaknessConceptSettings(weaknessId) {
-  const weakness = APP_STATE.weaknesses.find(w => w.id === weaknessId);
+  const weakness = getState().weaknesses.find(w => w.id === weaknessId);
   if (!weakness) return;
 
   const modal = document.getElementById('weaknessSettingsModal');
@@ -2794,7 +2964,7 @@ async function executeWeaknessConcept(weaknessId) {
 
 // 취약점 문제 생성 설정 모달
 function showWeaknessQuizSettings(weaknessId) {
-  const weakness = APP_STATE.weaknesses.find(w => w.id === weaknessId);
+  const weakness = getState().weaknesses.find(w => w.id === weaknessId);
   if (!weakness) return;
 
   const modal = document.getElementById('weaknessSettingsModal');
@@ -2849,7 +3019,7 @@ async function executeWeaknessQuiz(weaknessId) {
 }
 
 async function generateWeaknessConcept(weaknessId, level = 'detailed') {
-  const weakness = APP_STATE.weaknesses.find(w => w.id === weaknessId);
+  const weakness = getState().weaknesses.find(w => w.id === weaknessId);
   if (!weakness) return;
 
   showToast('개념 정리를 생성하고 있습니다...', 'info');
@@ -2928,7 +3098,7 @@ ${levelInstruction[level]}
       createdAt: new Date().toISOString()
     };
 
-    APP_STATE.weaknessConcepts.push(conceptEntry);
+    getState().weaknessConcepts.push(conceptEntry);
     saveState();
     showToast(`"${weakness.topic}" 개념 정리가 생성되었습니다!`, 'success');
 
@@ -2940,7 +3110,7 @@ ${levelInstruction[level]}
 }
 
 async function generateWeaknessQuizSingle(weaknessId, count = 5, difficulty = '보통', variation = 3, fromWrong = true) {
-  const weakness = APP_STATE.weaknesses.find(w => w.id === weaknessId);
+  const weakness = getState().weaknesses.find(w => w.id === weaknessId);
   if (!weakness) return;
 
   showToast('취약점 문제를 생성하고 있습니다...', 'info');
@@ -3011,7 +3181,7 @@ JSON 형식으로만 반환 (마크다운 코드 블록 없이):
       createdAt: new Date().toISOString()
     };
 
-    APP_STATE.weaknessQuizzes.push(quizEntry);
+    getState().weaknessQuizzes.push(quizEntry);
     saveState();
 
     showWeaknessQuizModal(quizEntry);
@@ -3063,7 +3233,7 @@ function selectWeaknessAnswer(quizId, qIdx, oIdx) {
 }
 
 function submitWeaknessQuiz(quizId) {
-  const quizEntry = APP_STATE.weaknessQuizzes.find(q => q.id === quizId);
+  const quizEntry = getState().weaknessQuizzes.find(q => q.id === quizId);
   if (!quizEntry) return;
 
   const answers = window._weaknessAnswers[quizId] || {};
@@ -3085,7 +3255,7 @@ function submitWeaknessQuiz(quizId) {
 }
 
 function deleteWeakness(id) {
-  APP_STATE.weaknesses = APP_STATE.weaknesses.filter(w => w.id !== id);
+  getState().weaknesses = getState().weaknesses.filter(w => w.id !== id);
   saveState();
   renderWeaknessList();
   updateWeaknessBadge();
@@ -3094,12 +3264,12 @@ function deleteWeakness(id) {
 
 function renderWeaknessConceptCollection() {
   const container = document.getElementById('weaknessConceptCollection');
-  if (APP_STATE.weaknessConcepts.length === 0) {
+  if (getState().weaknessConcepts.length === 0) {
     container.innerHTML = `<div class="empty-state"><div class="icon">📖</div><p>취약점 개념 정리가 없습니다.<br>취약점 목록에서 "개념 정리" 버튼을 눌러 생성하세요.</p></div>`;
     return;
   }
 
-  container.innerHTML = APP_STATE.weaknessConcepts.map(c => `
+  container.innerHTML = getState().weaknessConcepts.map(c => `
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:8px;">
         <div class="card-title" style="margin-bottom:0;">
@@ -3118,13 +3288,13 @@ function renderWeaknessConceptCollection() {
 }
 
 function expandWeaknessConcept(id) {
-  const concept = APP_STATE.weaknessConcepts.find(c => c.id === id);
+  const concept = getState().weaknessConcepts.find(c => c.id === id);
   if (!concept) return;
   openConceptViewPage(concept.topic + ' - 취약점 개념 정리', '취약점', concept.content);
 }
 
 function deleteWeaknessConcept(id) {
-  APP_STATE.weaknessConcepts = APP_STATE.weaknessConcepts.filter(c => c.id !== id);
+  getState().weaknessConcepts = getState().weaknessConcepts.filter(c => c.id !== id);
   saveState();
   renderWeaknessConceptCollection();
   showToast('삭제되었습니다.', 'info');
@@ -3132,12 +3302,12 @@ function deleteWeaknessConcept(id) {
 
 function renderWeaknessQuizCollection() {
   const container = document.getElementById('weaknessQuizCollection');
-  if (APP_STATE.weaknessQuizzes.length === 0) {
+  if (getState().weaknessQuizzes.length === 0) {
     container.innerHTML = `<div class="empty-state"><div class="icon">✏️</div><p>취약점 기반 문제가 없습니다.<br>취약점 목록에서 "문제 생성" 버튼을 눌러 생성하세요.</p></div>`;
     return;
   }
 
-  container.innerHTML = APP_STATE.weaknessQuizzes.map(q => `
+  container.innerHTML = getState().weaknessQuizzes.map(q => `
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
         <div class="card-title" style="margin-bottom:0;">
@@ -3158,7 +3328,7 @@ function renderWeaknessQuizCollection() {
 }
 
 function deleteWeaknessQuiz(id) {
-  APP_STATE.weaknessQuizzes = APP_STATE.weaknessQuizzes.filter(q => q.id !== id);
+  getState().weaknessQuizzes = getState().weaknessQuizzes.filter(q => q.id !== id);
   saveState();
   renderWeaknessQuizCollection();
   showToast('삭제되었습니다.', 'info');
@@ -3179,7 +3349,7 @@ function switchCollectionTab(tab) {
 function renderCollectionConcepts() {
   const container = document.getElementById('collectionConcepts');
   const filterSubject = document.getElementById('collectionSubjectFilter')?.value || '';
-  let allConcepts = [...APP_STATE.concepts, ...APP_STATE.weaknessConcepts.map(c => ({...c, subject: c.subject || '기타', keyword: c.topic}))];
+  let allConcepts = [...getState().concepts, ...getState().weaknessConcepts.map(c => ({...c, subject: c.subject || '기타', keyword: c.topic}))];
 
   if (filterSubject) {
     allConcepts = allConcepts.filter(c => c.subject === filterSubject);
@@ -3214,7 +3384,7 @@ function renderCollectionConcepts() {
 
 function openAllConceptsInNewTab() {
   const filterSubject = document.getElementById('collectionSubjectFilter')?.value || '';
-  let allConcepts = [...APP_STATE.concepts, ...APP_STATE.weaknessConcepts.map(c => ({...c, keyword: c.topic}))];
+  let allConcepts = [...getState().concepts, ...getState().weaknessConcepts.map(c => ({...c, keyword: c.topic}))];
   if (filterSubject) {
     allConcepts = allConcepts.filter(c => c.subject === filterSubject);
   }
@@ -3234,8 +3404,8 @@ function openAllConceptsInNewTab() {
 
 function showCollectionConcept(id, type) {
   const concept = type === 'weakness'
-    ? APP_STATE.weaknessConcepts.find(c => c.id === id)
-    : APP_STATE.concepts.find(c => c.id === id);
+    ? getState().weaknessConcepts.find(c => c.id === id)
+    : getState().concepts.find(c => c.id === id);
   if (!concept) return;
 
   if (concept.subTopicContents?.length > 0) {
@@ -3248,7 +3418,7 @@ function showCollectionConcept(id, type) {
 function renderCollectionQuizzes() {
   const container = document.getElementById('collectionQuizzes');
   const filterSubject = document.getElementById('collectionSubjectFilter')?.value || '';
-  let allQuizzes = [...APP_STATE.generatedQuizzes, ...APP_STATE.weaknessQuizzes.map(q => ({...q, subject: q.subject || '기타'}))];
+  let allQuizzes = [...getState().generatedQuizzes, ...getState().weaknessQuizzes.map(q => ({...q, subject: q.subject || '기타'}))];
 
   if (filterSubject) {
     allQuizzes = allQuizzes.filter(q => q.subject === filterSubject);
@@ -3281,13 +3451,13 @@ function renderCollectionQuizzes() {
 
 function retakeCollectionQuiz(quizId) {
   // generatedQuizzes에서 찾기
-  let quiz = APP_STATE.generatedQuizzes.find(q => q.id === quizId);
+  let quiz = getState().generatedQuizzes.find(q => q.id === quizId);
   if (quiz && quiz.questions) {
     showCollectionQuizModal(quiz);
     return;
   }
   // weaknessQuizzes에서 찾기
-  quiz = APP_STATE.weaknessQuizzes.find(q => q.id === quizId);
+  quiz = getState().weaknessQuizzes.find(q => q.id === quizId);
   if (quiz && quiz.questions) {
     showWeaknessQuizModal(quiz);
     return;
@@ -3338,7 +3508,7 @@ function selectCollectionAnswer(uid, qIdx, oIdx) {
 }
 
 function submitCollectionQuiz(uid, quizId) {
-  const quiz = APP_STATE.generatedQuizzes.find(q => q.id === quizId);
+  const quiz = getState().generatedQuizzes.find(q => q.id === quizId);
   if (!quiz) return;
 
   const answers = window._collectionAnswers[uid] || {};
@@ -3369,7 +3539,7 @@ function refreshCollectionTab() {
 function renderCollectionHistory() {
   const container = document.getElementById('collectionHistory');
   const filterSubject = document.getElementById('collectionSubjectFilter')?.value || '';
-  let history = APP_STATE.quizHistory;
+  let history = getState().quizHistory;
   if (filterSubject) {
     history = history.filter(h => h.subject === filterSubject);
   }
@@ -3397,34 +3567,35 @@ function renderCollectionHistory() {
 
 // ==================== 대시보드 ====================
 function updateDashboard() {
-  document.getElementById('statUploaded').textContent = localStorage.getItem('upload_count') || '0';
+  const uploadKey = currentMode === 'ncs' ? 'ncs_upload_count' : 'upload_count';
+  document.getElementById('statUploaded').textContent = localStorage.getItem(uploadKey) || '0';
   updateDashboardStats();
 
-  const totalSolved = APP_STATE.quizHistory.reduce((sum, h) => sum + h.total, 0);
+  const totalSolved = getState().quizHistory.reduce((sum, h) => sum + h.total, 0);
   document.getElementById('statSolved').textContent = totalSolved;
 
-  if (APP_STATE.quizHistory.length > 0) {
-    const totalCorrect = APP_STATE.quizHistory.reduce((sum, h) => sum + h.correct, 0);
+  if (getState().quizHistory.length > 0) {
+    const totalCorrect = getState().quizHistory.reduce((sum, h) => sum + h.correct, 0);
     document.getElementById('statCorrectRate').textContent = Math.round(totalCorrect / totalSolved * 100) + '%';
   }
 
-  document.getElementById('statWeakness').textContent = APP_STATE.weaknesses.length;
+  document.getElementById('statWeakness').textContent = getState().weaknesses.length;
   updateWeaknessBadge();
 
   const subjectStatsContainer = document.getElementById('subjectStats');
   if (subjectStatsContainer) {
-    if (APP_STATE.quizHistory.length === 0) {
+    if (getState().quizHistory.length === 0) {
       subjectStatsContainer.innerHTML = `<div style="font-size:13px; color:var(--c-text-muted);">문제를 풀면 과목별 통계가 표시됩니다.</div>`;
     } else {
       const subjectMap = {};
-      APP_STATE.quizHistory.forEach(h => {
+      getState().quizHistory.forEach(h => {
         const s = h.subject || '기타';
         if (!subjectMap[s]) subjectMap[s] = { total: 0, correct: 0, count: 0, weaknesses: 0 };
         subjectMap[s].total += h.total;
         subjectMap[s].correct += h.correct;
         subjectMap[s].count++;
       });
-      APP_STATE.weaknesses.forEach(w => {
+      getState().weaknesses.forEach(w => {
         const s = w.subject || '기타';
         if (!subjectMap[s]) subjectMap[s] = { total: 0, correct: 0, count: 0, weaknesses: 0 };
         subjectMap[s].weaknesses++;
@@ -3447,10 +3618,10 @@ function updateDashboard() {
   }
 
   const recentContainer = document.getElementById('recentHistory');
-  if (APP_STATE.quizHistory.length === 0) {
+  if (getState().quizHistory.length === 0) {
     recentContainer.innerHTML = `<div class="empty-state"><p>아직 학습 기록이 없습니다. 문제를 풀어보세요!</p></div>`;
   } else {
-    recentContainer.innerHTML = APP_STATE.quizHistory.slice(-5).reverse().map(h => `
+    recentContainer.innerHTML = getState().quizHistory.slice(-5).reverse().map(h => `
       <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--c-border);">
         <div>
           <span class="tag tag-info">${h.subject}</span>
@@ -3465,9 +3636,9 @@ function updateDashboard() {
 
 function updateWeaknessBadge() {
   const badge = document.getElementById('weaknessBadge');
-  if (APP_STATE.weaknesses.length > 0) {
+  if (getState().weaknesses.length > 0) {
     badge.style.display = 'inline';
-    badge.textContent = APP_STATE.weaknesses.length;
+    badge.textContent = getState().weaknesses.length;
   } else {
     badge.style.display = 'none';
   }
@@ -3488,22 +3659,25 @@ function toggleApiKey() {
 }
 
 function exportData() {
+  const state = getState();
   const data = {
-    subjects: APP_STATE.subjects,
-    subTopics: APP_STATE.subTopics,
-    concepts: APP_STATE.concepts,
-    weaknesses: APP_STATE.weaknesses,
-    weaknessConcepts: APP_STATE.weaknessConcepts,
-    weaknessQuizzes: APP_STATE.weaknessQuizzes,
-    quizHistory: APP_STATE.quizHistory,
-    generatedQuizzes: APP_STATE.generatedQuizzes,
-    analysisData: APP_STATE.analysisData,
-    previousQuestions: APP_STATE.previousQuestions
+    mode: currentMode,
+    subjects: state.subjects,
+    subTopics: state.subTopics,
+    concepts: state.concepts,
+    weaknesses: state.weaknesses,
+    weaknessConcepts: state.weaknessConcepts,
+    weaknessQuizzes: state.weaknessQuizzes,
+    quizHistory: state.quizHistory,
+    generatedQuizzes: state.generatedQuizzes,
+    analysisData: state.analysisData || null,
+    previousQuestions: state.previousQuestions
   };
+  const modeLabels = { exam: '기출분석', cs: '전산학', ncs: 'NCS' };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `전산직_학습데이터_${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `${modeLabels[currentMode]}_학습데이터_${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   showToast('데이터가 내보내졌습니다!', 'success');
 }
@@ -3514,16 +3688,17 @@ function importData(file) {
   reader.onload = (e) => {
     try {
       const data = JSON.parse(e.target.result);
-      if (data.subjects?.length) APP_STATE.subjects = data.subjects;
-      if (data.subTopics) APP_STATE.subTopics = data.subTopics;
-      if (data.concepts) APP_STATE.concepts = data.concepts;
-      if (data.weaknesses) APP_STATE.weaknesses = data.weaknesses;
-      if (data.weaknessConcepts) APP_STATE.weaknessConcepts = data.weaknessConcepts;
-      if (data.weaknessQuizzes) APP_STATE.weaknessQuizzes = data.weaknessQuizzes;
-      if (data.quizHistory) APP_STATE.quizHistory = data.quizHistory;
-      if (data.generatedQuizzes) APP_STATE.generatedQuizzes = data.generatedQuizzes;
-      if (data.analysisData) APP_STATE.analysisData = data.analysisData;
-      if (data.previousQuestions) APP_STATE.previousQuestions = data.previousQuestions;
+      const state = getState();
+      if (data.subjects?.length) state.subjects = data.subjects;
+      if (data.subTopics) state.subTopics = data.subTopics;
+      if (data.concepts) state.concepts = data.concepts;
+      if (data.weaknesses) state.weaknesses = data.weaknesses;
+      if (data.weaknessConcepts) state.weaknessConcepts = data.weaknessConcepts;
+      if (data.weaknessQuizzes) state.weaknessQuizzes = data.weaknessQuizzes;
+      if (data.quizHistory) state.quizHistory = data.quizHistory;
+      if (data.generatedQuizzes) state.generatedQuizzes = data.generatedQuizzes;
+      if (data.analysisData) state.analysisData = data.analysisData;
+      if (data.previousQuestions) state.previousQuestions = data.previousQuestions;
       saveState();
       refreshAllSubjectSelectors();
       renderSubjectManager();
@@ -3537,21 +3712,24 @@ function importData(file) {
 }
 
 function clearAllData() {
-  if (!confirm('모든 학습 데이터가 삭제됩니다. 계속하시겠습니까?')) return;
+  const modeLabel = currentMode === 'cs' ? '전산학 학습' : currentMode === 'ncs' ? 'NCS' : '기출 분석';
+  if (!confirm(`현재 모드(${modeLabel})의 학습 데이터가 삭제됩니다. 계속하시겠습니까?`)) return;
   if (!confirm('정말로 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
 
-  APP_STATE.concepts = [];
-  APP_STATE.weaknesses = [];
-  APP_STATE.weaknessConcepts = [];
-  APP_STATE.weaknessQuizzes = [];
-  APP_STATE.quizHistory = [];
-  APP_STATE.generatedQuizzes = [];
-  APP_STATE.analysisData = null;
-  APP_STATE.previousQuestions = [];
-  localStorage.setItem('upload_count', '0');
+  const state = getState();
+  state.concepts = [];
+  state.weaknesses = [];
+  state.weaknessConcepts = [];
+  state.weaknessQuizzes = [];
+  state.quizHistory = [];
+  state.generatedQuizzes = [];
+  state.previousQuestions = [];
+  if (state.analysisData !== undefined) state.analysisData = null;
+  if (currentMode === 'exam') localStorage.setItem('upload_count', '0');
+  if (currentMode === 'ncs') localStorage.setItem('ncs_upload_count', '0');
   saveState();
   updateDashboard();
-  showToast('모든 데이터가 초기화되었습니다.', 'info');
+  showToast(`${modeLabel} 데이터가 초기화되었습니다.`, 'info');
 }
 
 // ==================== 초기화 ====================
@@ -3575,8 +3753,8 @@ document.addEventListener('DOMContentLoaded', () => {
   updateDashboard();
   renderSavedConcepts();
 
-  if (APP_STATE.analysisData) {
-    renderAnalysisResult(APP_STATE.analysisData);
+  if (getState().analysisData) {
+    renderAnalysisResult(getState().analysisData);
   }
 
   const fbConfig = getFirebaseConfig();
