@@ -3304,17 +3304,25 @@ function deleteWeakness(id) {
 
 // ==================== 전체 취약점 개념 정리 ====================
 async function generateAllWeaknessConcepts() {
-  const weaknesses = getState().weaknesses;
+  const filterSubject = document.getElementById('weaknessSubjectFilter')?.value || '';
+  let weaknesses = getState().weaknesses;
+  if (filterSubject) {
+    weaknesses = weaknesses.filter(w => w.subject === filterSubject);
+  }
   if (weaknesses.length === 0) {
     showToast('저장된 취약점이 없습니다.', 'error');
     return;
   }
 
+  // 필터된 목록을 임시 저장
+  getState()._filteredWeaknessIds = weaknesses.map(w => w.id);
+  const filterLabel = filterSubject ? ` [${filterSubject}]` : '';
+
   const modal = document.getElementById('weaknessSettingsModal');
-  document.getElementById('weaknessSettingsTitle').textContent = `전체 취약점 개념 정리 (${weaknesses.length}개)`;
+  document.getElementById('weaknessSettingsTitle').textContent = `전체 취약점 개념 정리${filterLabel} (${weaknesses.length}개)`;
   document.getElementById('weaknessSettingsContent').innerHTML = `
     <p style="font-size:13px; color:var(--c-text-muted); margin-bottom:16px;">
-      ${weaknesses.map(w => `<span class="tag tag-danger" style="margin:2px;">${w.topic} (${w.count}회)</span>`).join(' ')}
+      ${weaknesses.map(w => `<span class="tag tag-danger" style="margin:2px;">${w.subject} - ${w.topic} (${w.count}회)</span>`).join(' ')}
     </p>
     <div class="form-group">
       <label class="form-label">정리 수준</label>
@@ -3332,7 +3340,12 @@ async function generateAllWeaknessConcepts() {
 async function executeAllWeaknessConcepts() {
   closeModal('weaknessSettingsModal');
   const level = document.getElementById('allWConceptLevel').value;
-  const weaknesses = getState().weaknesses;
+  // 필터된 목록 사용
+  const filteredIds = getState()._filteredWeaknessIds || [];
+  const weaknesses = filteredIds.length > 0
+    ? getState().weaknesses.filter(w => filteredIds.includes(w.id))
+    : getState().weaknesses;
+  delete getState()._filteredWeaknessIds;
 
   showToast(`${weaknesses.length}개 취약점 개념 정리를 시작합니다...`, 'info');
 
@@ -3357,17 +3370,25 @@ async function executeAllWeaknessConcepts() {
 
 // ==================== 전체 취약점 문제 생성 ====================
 async function generateAllWeaknessQuiz() {
-  const weaknesses = getState().weaknesses;
+  const filterSubject = document.getElementById('weaknessSubjectFilter')?.value || '';
+  let weaknesses = getState().weaknesses;
+  if (filterSubject) {
+    weaknesses = weaknesses.filter(w => w.subject === filterSubject);
+  }
   if (weaknesses.length === 0) {
     showToast('저장된 취약점이 없습니다.', 'error');
     return;
   }
 
+  // 필터된 목록을 임시 저장
+  getState()._filteredWeaknessIds = weaknesses.map(w => w.id);
+  const filterLabel = filterSubject ? ` [${filterSubject}]` : '';
+
   const modal = document.getElementById('weaknessSettingsModal');
-  document.getElementById('weaknessSettingsTitle').textContent = `전체 취약점 문제 생성 (${weaknesses.length}개)`;
+  document.getElementById('weaknessSettingsTitle').textContent = `전체 취약점 문제 생성${filterLabel} (${weaknesses.length}개)`;
   document.getElementById('weaknessSettingsContent').innerHTML = `
     <p style="font-size:13px; color:var(--c-text-muted); margin-bottom:16px;">
-      ${weaknesses.map(w => `<span class="tag tag-danger" style="margin:2px;">${w.topic} (${w.count}회)</span>`).join(' ')}
+      ${weaknesses.map(w => `<span class="tag tag-danger" style="margin:2px;">${w.subject} - ${w.topic} (${w.count}회)</span>`).join(' ')}
     </p>
     <div class="form-group">
       <label class="form-label">취약점당 문제 수</label>
@@ -3406,7 +3427,12 @@ async function executeAllWeaknessQuiz() {
   const count = parseInt(document.getElementById('allWQuizCount').value);
   const difficulty = document.getElementById('allWQuizDiff').value;
   const variation = parseInt(document.getElementById('allWQuizVar').value);
-  const weaknesses = getState().weaknesses;
+  // 필터된 목록 사용
+  const filteredIds = getState()._filteredWeaknessIds || [];
+  const weaknesses = filteredIds.length > 0
+    ? getState().weaknesses.filter(w => filteredIds.includes(w.id))
+    : getState().weaknesses;
+  delete getState()._filteredWeaknessIds;
 
   showToast(`${weaknesses.length}개 취약점 문제 생성을 시작합니다...`, 'info');
 
