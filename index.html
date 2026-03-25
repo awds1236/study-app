@@ -837,6 +837,9 @@ body.mode-ncs .cs-only { display: none !important; }
 
     <!-- 개념 정리 모아보기 -->
     <div class="tab-content" id="weaknessTab-conceptView">
+      <div style="margin-bottom:16px;">
+        <button class="btn btn-primary" onclick="openAllWeaknessConceptsPage()">📖 전체 개념 한 페이지에서 보기</button>
+      </div>
       <div id="weaknessConceptCollection">
         <div class="empty-state">
           <div class="icon">📖</div>
@@ -3596,6 +3599,20 @@ function expandWeaknessConcept(id) {
   const concept = getState().weaknessConcepts.find(c => c.id === id);
   if (!concept) return;
   openConceptViewPage(concept.topic + ' - 취약점 개념 정리', '취약점', concept.content);
+}
+
+function openAllWeaknessConceptsPage() {
+  const concepts = getState().weaknessConcepts;
+  if (concepts.length === 0) {
+    showToast('저장된 개념 정리가 없습니다.', 'error');
+    return;
+  }
+  const subTopicContents = concepts.map(c => ({
+    subTopic: c.topic,
+    content: c.content
+  }));
+  const modeLabel = currentMode === 'ncs' ? 'NCS' : currentMode === 'cs' ? '전산학' : '기출';
+  openTabbedConceptViewPage(`[${modeLabel}] 전체 취약점 개념 정리`, '취약점', subTopicContents);
 }
 
 function deleteWeaknessConcept(id) {
