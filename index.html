@@ -1768,6 +1768,20 @@ function formatMarkdown(text) {
   let html = text;
   html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
   html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+  // LaTeX 수식 제거: $...$ → 내용만 표시
+  html = html.replace(/\$\$([^$]+)\$\$/g, '$1');
+  html = html.replace(/\$([^$]+)\$/g, '$1');
+  // LaTeX 명령어 정리
+  html = html.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '$1/$2');
+  html = html.replace(/\\(sum|prod|int|sqrt|log|ln|sin|cos|tan|lim|infty|alpha|beta|gamma|delta|epsilon|theta|lambda|mu|pi|sigma|omega|times|cdot|leq|geq|neq|approx|rightarrow|leftarrow|Rightarrow|Leftarrow)/g, (m, cmd) => {
+    const map = {sum:'Σ',prod:'Π',int:'∫',sqrt:'√',log:'log',ln:'ln',sin:'sin',cos:'cos',tan:'tan',lim:'lim',infty:'∞',alpha:'α',beta:'β',gamma:'γ',delta:'δ',epsilon:'ε',theta:'θ',lambda:'λ',mu:'μ',pi:'π',sigma:'σ',omega:'ω',times:'×',cdot:'·',leq:'≤',geq:'≥',neq:'≠',approx:'≈',rightarrow:'→',leftarrow:'←',Rightarrow:'⇒',Leftarrow:'⇐'};
+    return map[cmd] || cmd;
+  });
+  html = html.replace(/\\text\{([^}]+)\}/g, '$1');
+  html = html.replace(/\{([^{}]+)\}/g, '$1');
+  html = html.replace(/\\_/g, '_');
+  html = html.replace(/\\\\/g, '');
+  html = html.replace(/^#{4,6}\s+(.+)$/gm, '<h3>$1</h3>');
   html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
   html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
   html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
@@ -2179,7 +2193,10 @@ ${subTopic ? `- "${subTopic}" 분야의 모든 세부 항목을 빠짐없이 다
 - 비교가 가능한 개념은 반드시 **표(table)**로 정리하세요
 - 줄바꿈과 구조화를 충분히 활용하세요
 - 볼드(**), 리스트(-), 코드(\`\`), 표를 적극 활용하세요
-- 단순 나열이 아닌, **이해를 돕는 설명**을 하세요`;
+- 단순 나열이 아닌, **이해를 돕는 설명**을 하세요
+- **절대 LaTeX 문법($...$, \\frac, \\sum 등)을 사용하지 마세요!** 수식은 일반 텍스트로 작성하세요. 예: O(log n), n/2, X < Y 등
+- 제목은 #, ##, ### 까지만 사용하세요. #### 이상은 사용하지 마세요.
+- 사람이 직접 작성한 것처럼 자연스럽고 읽기 쉽게 작성하세요`;
 }
 
 // 전체 선택 시 세부과목별 분할 생성
@@ -3129,7 +3146,10 @@ ${levelInstruction[level]}
 - 원리를 이해시켜 응용 문제도 풀 수 있게 하세요
 - 줄바꿈을 충분히 사용하세요
 - 볼드, 리스트, 코드블록, **표**를 적극 활용하세요
-- 응용 문제 대비 심화 내용도 포함하세요`;
+- 응용 문제 대비 심화 내용도 포함하세요
+- **절대 LaTeX 문법($...$, \\frac 등)을 사용하지 마세요!** 수식은 일반 텍스트로 작성하세요. 예: O(log n), X < Root, n/2 등
+- 제목은 #, ##, ### 까지만 사용하세요. #### 이상은 사용하지 마세요.
+- 사람이 직접 작성한 것처럼 자연스럽고 읽기 쉽게 작성하세요`;
 
     const result = await callGemini(prompt);
 
