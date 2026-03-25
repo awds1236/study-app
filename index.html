@@ -2431,6 +2431,7 @@ function openConceptViewPage(title, tag, markdownContent) {
     + '<div class="content">' + html + '</div>'
     + '</body></html>';
   var newTab = window.open('', '_blank');
+  if (!newTab) { showToast('팝업이 차단되었습니다. 팝업 허용 후 다시 시도하세요.', 'error'); return; }
   newTab.document.write(pageHtml);
   newTab.document.close();
 }
@@ -2502,6 +2503,7 @@ function openTabbedConceptViewPage(title, subject, subTopicContents) {
     + '</body></html>';
 
   var newTab = window.open('', '_blank');
+  if (!newTab) { showToast('팝업이 차단되었습니다. 팝업 허용 후 다시 시도하세요.', 'error'); return; }
   newTab.document.write(pageHtml);
   newTab.document.close();
 }
@@ -3058,7 +3060,7 @@ async function executeWeaknessQuiz(weaknessId) {
   await generateWeaknessQuizSingle(weaknessId, count, difficulty, variation, fromWrong);
 }
 
-async function generateWeaknessConcept(weaknessId, level = 'detailed') {
+async function generateWeaknessConcept(weaknessId, level = 'detailed', skipOpen = false) {
   const weakness = getState().weaknesses.find(w => w.id === weaknessId);
   if (!weakness) return;
 
@@ -3142,7 +3144,9 @@ ${levelInstruction[level]}
     saveState();
     showToast(`"${weakness.topic}" 개념 정리가 생성되었습니다!`, 'success');
 
-    openConceptViewPage(weakness.topic + ' - 취약점 개념 정리', weakness.subject || '취약점', result);
+    if (!skipOpen) {
+      openConceptViewPage(weakness.topic + ' - 취약점 개념 정리', weakness.subject || '취약점', result);
+    }
 
   } catch (e) {
     showToast('개념 정리 실패: ' + e.message, 'error');
@@ -3353,7 +3357,7 @@ async function executeAllWeaknessConcepts() {
   for (let i = 0; i < weaknesses.length; i++) {
     showToast(`[${i + 1}/${weaknesses.length}] "${weaknesses[i].topic}" 정리 중...`, 'info');
     try {
-      await generateWeaknessConcept(weaknesses[i].id, level);
+      await generateWeaknessConcept(weaknesses[i].id, level, true);
       const latest = getState().weaknessConcepts[getState().weaknessConcepts.length - 1];
       if (latest) results.push({ subTopic: weaknesses[i].topic, content: latest.content });
     } catch (e) {
@@ -3558,6 +3562,7 @@ function openAllWeaknessQuizPage(questions) {
     + '<\/script></body></html>';
 
   var newTab = window.open('', '_blank');
+  if (!newTab) { showToast('팝업이 차단되었습니다. 팝업 허용 후 다시 시도하세요.', 'error'); return; }
   newTab.document.write(pageHtml);
   newTab.document.close();
 }
