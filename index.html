@@ -2608,6 +2608,7 @@ ${difficultyInstr}
 ${!subject ? `\n⚠️ 전체 과목 출제 시: 각 과목에서 균등하게 문제를 배분하세요. 각 문제의 "subject" 필드에 해당 과목명을 명시하세요.` : ''}
 
 ${getState().analysisData ? `참고할 분석 데이터: ${JSON.stringify(getState().analysisData.categories?.slice(0, 3))}` : ''}
+${getState()._weaknessTopicsForQuiz ? `\n⚠️ 취약점 기반 출제입니다. 아래 소주제별로 골고루 문제를 배분하세요:\n${getState()._weaknessTopicsForQuiz}\n각 문제의 "topic" 필드에 해당 소주제명만 정확히 기입하세요 (여러 소주제를 합치지 마세요).` : ''}
 
 중요 규칙:
 1. 정답과 해설은 반드시 정확해야 합니다
@@ -2618,6 +2619,7 @@ ${prevQSummary ? `5. 다음 문제들은 이미 출제되었으니 유사한 문
 6. 실제 시험과 동일한 형식으로 출제하세요
 7. 각 문제의 난이도를 명시하세요
 8. 중요도가 낮은 지엽적 문제는 중복을 특히 피하고, 중요한 핵심 개념 위주로 출제하세요
+9. **"topic" 필드에는 반드시 하나의 소주제명만 적으세요. 여러 주제를 쉼표로 합치지 마세요.**
 
 반드시 다음 JSON 형식으로만 반환하세요 (마크다운 코드 블록 없이):
 {
@@ -2669,6 +2671,9 @@ ${prevQSummary ? `5. 다음 문제들은 이미 출제되었으니 유사한 문
     });
     saveState();
 
+    // 취약점 기반 출제 임시 데이터 클리어
+    delete getState()._weaknessTopicsForQuiz;
+
     renderQuiz(quizData);
     showToast(`${count}문제가 생성되었습니다!`, 'success');
   } catch (e) {
@@ -2683,8 +2688,13 @@ function generateWeaknessQuiz() {
     showToast('저장된 취약점이 없습니다. 먼저 문제를 풀고 채점하세요.', 'error');
     return;
   }
-  const topics = getState().weaknesses.map(w => w.topic).join(', ');
-  document.getElementById('quizTopic').value = topics;
+  // 각 취약점 소주제를 개별 주제로 전달 (한 문자열로 합치지 않음)
+  const weaknesses = getState().weaknesses;
+  const topicsList = weaknesses.map(w => `"${w.topic}" (${w.subject})`).join('\n');
+  document.getElementById('quizTopic').value = `취약점 기반: ${weaknesses.length}개 소주제`;
+
+  // 취약점 정보를 임시 저장하여 프롬프트에서 활용
+  getState()._weaknessTopicsForQuiz = topicsList;
   generateQuiz();
 }
 
@@ -2810,7 +2820,7 @@ function submitQuiz() {
       if (userAnswer !== undefined) {
         document.getElementById(`option-${i}-${userAnswer}`).classList.add('wrong');
       }
-      wrongTopics.push({ topic: q.topic || quiz.subject, question: q.question, explanation: q.explanation });
+      wrongTopics.push({ topic: q.topic || q.subject || quiz.subject, subject: q.subject || quiz.subject, question: q.question, explanation: q.explanation });
     }
 
     document.getElementById(`explanation-${i}`).classList.add('show');
@@ -2859,16 +2869,23 @@ async function saveWrongAnswers() {
 
   const quizSubject = getState().currentQuiz?.subject || '기타';
   wrongTopics.forEach(w => {
-    const existing = getState().weaknesses.find(x => x.topic === w.topic && x.subject === quizSubject);
+    // 소주제별로 분리하여 저장 (쉼표로 구분된 주제가 들어올 수 있음)
+    const topicName = (w.topic || '').trim();
+    // 문제의 subject 필드가 있으면 그것을 과목으로 사용
+    const subj = w.subject || quizSubject;
+
+    const existing = getState().weaknesses.find(x => x.topic === topicName && x.subject === subj);
     if (existing) {
       existing.count++;
-      existing.questions.push(w.question);
+      if (!existing.questions.includes(w.question)) {
+        existing.questions.push(w.question);
+      }
       existing.lastDate = new Date().toISOString();
     } else {
       getState().weaknesses.push({
         id: generateId(),
-        subject: quizSubject,
-        topic: w.topic,
+        subject: subj,
+        topic: topicName,
         count: 1,
         questions: [w.question],
         lastDate: new Date().toISOString()
@@ -2918,23 +2935,44 @@ function renderWeaknessList() {
   const sorted = [...filtered].sort((a, b) => b.count - a.count);
   const maxCount = Math.max(...sorted.map(w => w.count));
 
-  container.innerHTML = sorted.map(w => `
-    <div class="weakness-item">
-      <div class="weakness-header">
-        <div class="weakness-topic">${w.topic} <span class="tag tag-info" style="font-size:11px;">${w.subject || '기타'}</span></div>
-        <div class="weakness-count">틀린 횟수: ${w.count}회</div>
-      </div>
-      <div class="weakness-detail">최근: ${new Date(w.lastDate).toLocaleDateString('ko-KR')}</div>
-      <div class="weakness-bar">
-        <div class="weakness-bar-fill" style="width:${(w.count / maxCount * 100)}%"></div>
-      </div>
-      <div class="weakness-actions">
-        <button class="btn btn-sm btn-primary" onclick="showWeaknessConceptSettings('${w.id}')">📖 개념 정리</button>
-        <button class="btn btn-sm btn-warning" onclick="showWeaknessQuizSettings('${w.id}')">✏️ 문제 생성</button>
-        <button class="btn btn-sm btn-danger" onclick="deleteWeakness('${w.id}')">삭제</button>
-      </div>
-    </div>
-  `).join('');
+  // 과목별 그룹핑
+  const grouped = {};
+  sorted.forEach(w => {
+    const key = w.subject || '기타';
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(w);
+  });
+
+  let html = '';
+  for (const [subject, items] of Object.entries(grouped)) {
+    const totalCount = items.reduce((sum, w) => sum + w.count, 0);
+    html += `<div style="margin-bottom:20px;">
+      <div style="font-size:14px; font-weight:700; color:var(--c-primary); margin-bottom:10px; display:flex; align-items:center; gap:8px;">
+        ${subject}
+        <span style="font-size:12px; color:var(--c-text-muted); font-weight:400;">(${items.length}개 소주제 · 총 ${totalCount}회 오답)</span>
+      </div>`;
+    items.forEach(w => {
+      const safeId = w.id.replace(/'/g, "\\'");
+      html += `
+      <div class="weakness-item">
+        <div class="weakness-header">
+          <div class="weakness-topic">${w.topic}</div>
+          <div class="weakness-count">틀린 횟수: ${w.count}회</div>
+        </div>
+        <div class="weakness-detail">최근: ${new Date(w.lastDate).toLocaleDateString('ko-KR')} · 관련 문제 ${w.questions.length}개</div>
+        <div class="weakness-bar">
+          <div class="weakness-bar-fill" style="width:${(w.count / maxCount * 100)}%"></div>
+        </div>
+        <div class="weakness-actions">
+          <button class="btn btn-sm btn-primary" onclick="showWeaknessConceptSettings('${safeId}')">📖 개념 정리</button>
+          <button class="btn btn-sm btn-warning" onclick="showWeaknessQuizSettings('${safeId}')">✏️ 문제 생성</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteWeakness('${safeId}')">삭제</button>
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+  container.innerHTML = html;
 }
 
 // 취약점 개념 정리 설정 모달
