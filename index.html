@@ -1964,194 +1964,213 @@ async function analyzeFiles() {
   const progressFill = document.getElementById('analyzeProgressFill');
   loading.classList.add('show');
   progress.style.display = 'block';
-  progressFill.style.width = '10%';
+  progressFill.style.width = '5%';
   document.getElementById('analyzeBtn').disabled = true;
 
+  const totalFiles = getState().uploadedFiles.length;
+
+  const analyzeContext = currentMode === 'ncs'
+    ? 'NCS 직업기초능력평가'
+    : '한국 9급 공무원 전산직 시험';
+
+  const subjectGuide = currentMode === 'ncs'
+    ? '과목 분류: 의사소통능력, 수리능력, 문제해결능력, 자원관리능력, 정보능력, 조직이해능력, 자기개발능력, 직업윤리, 기술능력, 대인관계능력'
+    : '과목 분류: 컴퓨터일반, 정보보호론';
+
   try {
-    document.getElementById('analyzeLoadingText').textContent = 'PDF 파일을 읽고 있습니다...';
-    progressFill.style.width = '20%';
+    // ===== PDF별 개별 처리 =====
+    let allExtractedQuestions = [];
+    let allFileInfos = [];
+    let allTopicMap = {}; // subject -> [{name, years, count}]
+    let failedFiles = [];
 
-    const pdfDataArray = [];
-    for (let i = 0; i < getState().uploadedFiles.length; i++) {
-      const base64 = await fileToBase64(getState().uploadedFiles[i]);
-      pdfDataArray.push({ name: getState().uploadedFiles[i].name, data: base64 });
-      progressFill.style.width = (20 + (i + 1) / getState().uploadedFiles.length * 30) + '%';
-    }
+    for (let fi = 0; fi < totalFiles; fi++) {
+      const file = getState().uploadedFiles[fi];
+      const fileName = file.name;
 
-    // ===== 1단계: 분석 요약 =====
-    document.getElementById('analyzeLoadingText').textContent = 'AI가 문제를 분석하고 있습니다... (1/2 요약 분석)';
-    progressFill.style.width = '50%';
-
-    const analyzeContext = currentMode === 'ncs'
-      ? `당신은 NCS 직업기초능력평가 전문가입니다.\n업로드된 ${pdfDataArray.length}개의 PDF 파일은 NCS 직업기초능력평가 문제입니다.`
-      : `당신은 한국 9급 공무원 전산직 시험 전문가입니다.\n업로드된 ${pdfDataArray.length}개의 PDF 파일은 9급 공무원 전산직 시험 기출문제입니다.`;
-
-    const subjectGuide = currentMode === 'ncs'
-      ? '과목 분류: 의사소통능력, 수리능력, 문제해결능력, 자원관리능력, 정보능력, 조직이해능력, 자기개발능력, 직업윤리, 기술능력, 대인관계능력'
-      : '과목 분류: 컴퓨터일반(컴퓨터구조, 운영체제, 네트워크, 데이터베이스, 소프트웨어공학, 자료구조, 알고리즘, 프로그래밍언어 등), 정보보호론(정보보안, 네트워크보안, 시스템보안, 암호학, 접근제어, 법규 등)';
-
-    const summaryPrompt = `${analyzeContext}
-${subjectGuide}
-
-모든 PDF를 분석하여 다음을 JSON 형식으로 반환해주세요:
-
-{
-  "summary": "전체 분석 요약 (어떤 연도의 어떤 과목들이 포함되어 있는지)",
-  "files": [
-    {
-      "name": "파일명",
-      "year": "시험 연도",
-      "subject": "과목명",
-      "questionCount": 문제수
-    }
-  ],
-  "categories": [
-    {
-      "subject": "과목명 (위 과목 분류 참고)",
-      "topics": [
-        {
-          "name": "구체적인 세부 주제명 (예: 이진 탐색 트리, TCP 3-way handshake, 정규화, 페이지 교체 알고리즘 등)",
-          "frequency": "출제 빈도 (높음/중간/낮음)",
-          "years": ["출제된 연도들"],
-          "description": "해당 주제에서 주로 출제되는 내용 설명",
-          "questionNumbers": ["해당 문제 번호들 (예: 2024-3, 2023-15)"]
+      // 파일명에서 연도 추출 시도
+      const yearMatch = fileName.match(/(20\d{2}|\d{6})/);
+      let guessedYear = '';
+      if (yearMatch) {
+        const matched = yearMatch[1];
+        if (matched.length === 6) {
+          guessedYear = '20' + matched.substring(0, 2);
+        } else {
+          guessedYear = matched;
         }
-      ]
-    }
-  ],
-  "trends": "출제 경향 분석 (최근 트렌드, 자주 나오는 유형 등)",
-  "recommendations": "학습 추천 사항"
-}
+      }
 
-중요 규칙:
-- 세부 주제(topics.name)는 **구체적이고 명확하게** 작성하세요 (예: "네트워크" (X) → "OSI 7계층", "TCP/UDP 비교", "서브넷팅" (O))
-- 각 문제가 어떤 세부 주제에 해당하는지 정확히 분류하세요
-- 모든 문제를 빠짐없이 분류하세요
-- 반드시 유효한 JSON만 반환하세요. 마크다운 코드 블록 없이 순수 JSON만 반환하세요.`;
+      // 파일명에서 과목 추출 시도
+      let guessedSubject = '';
+      if (/컴퓨터일반|컴퓨터/.test(fileName)) guessedSubject = '컴퓨터일반';
+      else if (/정보보호/.test(fileName)) guessedSubject = '정보보호론';
 
-    const summaryResult = await callGeminiWithPdf(pdfDataArray, summaryPrompt);
-    progressFill.style.width = '65%';
+      const pctBase = 5 + (fi / totalFiles) * 90;
+      const pctStep = 90 / totalFiles;
+      document.getElementById('analyzeLoadingText').textContent = `PDF 분석 중... (${fi + 1}/${totalFiles}) ${fileName}`;
+      progressFill.style.width = pctBase + '%';
 
-    let analysisData;
-    try {
-      const jsonStr = summaryResult.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      analysisData = JSON.parse(jsonStr);
-    } catch {
-      analysisData = { summary: summaryResult, files: [], categories: [], trends: '', recommendations: '' };
-    }
+      try {
+        const base64 = await fileToBase64(file);
+        const pdfData = [{ name: fileName, data: base64 }];
 
-    getState().analysisData = analysisData;
-
-    // ===== 2단계: 개별 문제 추출 =====
-    document.getElementById('analyzeLoadingText').textContent = 'AI가 개별 문제를 추출하고 있습니다... (2/2 문제 추출)';
-    progressFill.style.width = '70%';
-
-    const extractPrompt = `${analyzeContext}
+        const extractPrompt = `당신은 ${analyzeContext} 전문가입니다.
 ${subjectGuide}
 
-PDF에서 **모든 문제를 하나하나 빠짐없이** 추출하여 다음 JSON 형식으로 반환해주세요:
+이 PDF 파일 정보:
+- 파일명: "${fileName}"
+- 추정 연도: ${guessedYear || '파일명에서 확인 불가 - PDF 내용에서 확인하세요'}
+- 추정 과목: ${guessedSubject || '파일명에서 확인 불가 - PDF 내용에서 확인하세요'}
+
+이 PDF에서 **모든 문제를 하나하나 빠짐없이** 추출하여 다음 JSON 형식으로 반환해주세요:
 
 {
+  "fileInfo": {
+    "name": "${fileName}",
+    "year": "시험 연도 (4자리, 예: 2024)",
+    "subject": "과목명",
+    "questionCount": 문제수
+  },
   "questions": [
     {
-      "id": 1,
-      "year": "시험 연도 (예: 2024)",
       "number": 문제번호,
-      "subject": "과목명 (위 과목 분류에 맞게)",
-      "topic": "구체적인 세부 주제명 (예: 이진 탐색 트리, RSA 암호, 정규화 등)",
-      "question": "문제 전체 내용 (보기 포함, 원문 그대로)",
-      "options": ["1번 선택지", "2번 선택지", "3번 선택지", "4번 선택지"],
-      "answer": 정답번호(0부터 시작, 0=1번),
-      "explanation": "정답 해설 (왜 이 답이 맞는지, 나머지는 왜 틀린지)"
+      "subject": "과목명 (컴퓨터일반 또는 정보보호론)",
+      "topic": "구체적인 세부 주제명 (예: 이진 탐색 트리, RSA 암호, 페이지 교체 알고리즘, TCP 3-way handshake 등)",
+      "question": "문제 전체 내용 (보기/조건 포함, 원문 그대로 정확히)",
+      "options": ["1번 선택지 전체", "2번 선택지 전체", "3번 선택지 전체", "4번 선택지 전체"],
+      "answer": 정답번호(0부터 시작: 0=1번, 1=2번, 2=3번, 3=4번),
+      "explanation": "정답 해설 (왜 이 답이 맞는지, 오답인 선택지는 왜 틀린지)"
     }
   ]
 }
 
 절대 규칙:
-- **모든 문제를 빠짐없이** 추출하세요
-- 문제 원문을 최대한 그대로 옮기세요
-- 선택지 4개를 정확히 추출하세요
-- 정답은 반드시 정확해야 합니다 (확실하지 않으면 해설에 "정답 확인 필요" 표시)
-- subject와 topic은 위 과목 분류를 참고하여 정확하게 분류하세요
-- topic은 **구체적인 소주제**로 작성하세요 (예: "운영체제" (X) → "페이지 교체 알고리즘 - LRU" (O))
+- **모든 문제(보통 20문제)를 빠짐없이** 추출하세요
+- 문제와 선택지 원문을 **정확히 그대로** 옮기세요. 요약하거나 생략하지 마세요
+- 선택지에 코드, 표, 그림 설명이 있으면 최대한 텍스트로 표현하세요
+- 정답은 반드시 정확해야 합니다
+- topic은 **구체적인 소주제 1개**만 작성하세요 (예: "운영체제" (X) → "페이지 교체 알고리즘" (O))
+- year는 반드시 4자리 연도로 작성하세요 (예: "2024")
 - 반드시 유효한 JSON만 반환하세요. 마크다운 코드 블록 없이.`;
 
-    const extractResult = await callGeminiWithPdf(pdfDataArray, extractPrompt);
-    progressFill.style.width = '90%';
+        const result = await callGeminiWithPdf(pdfData, extractPrompt);
 
-    let extractedData;
-    try {
-      const jsonStr2 = extractResult.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      extractedData = JSON.parse(jsonStr2);
-    } catch {
-      extractedData = { questions: [] };
-    }
-
-    // 추출된 문제 저장 (기존 데이터에 추가, 중복 제거)
-    if (extractedData.questions?.length) {
-      const existing = getState().extractedQuestions;
-      extractedData.questions.forEach(q => {
-        const isDup = existing.some(e => e.year === q.year && e.number === q.number && e.question?.substring(0, 50) === q.question?.substring(0, 50));
-        if (!isDup) {
-          q.id = q.id || generateId();
-          existing.push(q);
+        let parsed;
+        try {
+          const jsonStr = result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+          parsed = JSON.parse(jsonStr);
+        } catch {
+          failedFiles.push(fileName);
+          continue;
         }
-      });
-    }
 
-    // 분석 결과에서 세부과목 자동 등록
-    if (analysisData.categories?.length) {
-      let addedCount = 0;
-      analysisData.categories.forEach(cat => {
-        const subject = cat.subject;
-        if (subject && !getState().subjects.includes(subject)) {
-          getState().subjects.push(subject);
+        // 파일 정보 저장
+        if (parsed.fileInfo) {
+          allFileInfos.push(parsed.fileInfo);
         }
-        if (subject && cat.topics?.length) {
-          if (!getState().subTopics[subject]) getState().subTopics[subject] = [];
-          cat.topics.forEach(t => {
-            const topicName = t.name;
-            if (topicName && !getState().subTopics[subject].includes(topicName)) {
-              getState().subTopics[subject].push(topicName);
-              addedCount++;
-            }
+
+        // 문제 저장
+        if (parsed.questions?.length) {
+          const year = parsed.fileInfo?.year || guessedYear || '미상';
+          const subject = parsed.fileInfo?.subject || guessedSubject || '기타';
+
+          parsed.questions.forEach(q => {
+            q.year = q.year || year;
+            q.subject = q.subject || subject;
+            q.id = generateId();
+            allExtractedQuestions.push(q);
+
+            // 주제별 통계
+            const subj = q.subject;
+            const topicName = q.topic || '기타';
+            if (!allTopicMap[subj]) allTopicMap[subj] = {};
+            if (!allTopicMap[subj][topicName]) allTopicMap[subj][topicName] = { name: topicName, years: new Set(), count: 0 };
+            allTopicMap[subj][topicName].years.add(q.year);
+            allTopicMap[subj][topicName].count++;
           });
         }
-      });
-      if (addedCount > 0) {
-        refreshAllSubjectSelectors();
-        renderSubjectManager();
-        renderSubTopicManager();
+
+      } catch (err) {
+        failedFiles.push(fileName + ' (' + err.message + ')');
+      }
+
+      progressFill.style.width = (pctBase + pctStep) + '%';
+
+      // API 속도 제한 방지 (짧은 딜레이)
+      if (fi < totalFiles - 1) {
+        await new Promise(r => setTimeout(r, 1000));
       }
     }
 
-    // 추출된 문제에서도 세부과목 자동 등록
-    if (getState().extractedQuestions.length) {
-      getState().extractedQuestions.forEach(q => {
-        if (q.subject && !getState().subjects.includes(q.subject)) {
-          getState().subjects.push(q.subject);
-        }
-        if (q.subject && q.topic) {
-          if (!getState().subTopics[q.subject]) getState().subTopics[q.subject] = [];
-          if (!getState().subTopics[q.subject].includes(q.topic)) {
-            getState().subTopics[q.subject].push(q.topic);
-          }
-        }
-      });
-      refreshAllSubjectSelectors();
-      renderSubjectManager();
-      renderSubTopicManager();
-    }
+    // ===== 분석 결과 종합 =====
+    document.getElementById('analyzeLoadingText').textContent = '분석 결과를 정리하고 있습니다...';
+    progressFill.style.width = '95%';
 
+    // 추출된 문제 저장 (기존 데이터에 추가, 중복 제거)
+    const existing = getState().extractedQuestions;
+    allExtractedQuestions.forEach(q => {
+      const isDup = existing.some(e =>
+        e.year == q.year && e.number == q.number && e.subject === q.subject
+      );
+      if (!isDup) {
+        existing.push(q);
+      }
+    });
+
+    // 분석 데이터 구성
+    const categories = Object.entries(allTopicMap).map(([subject, topics]) => ({
+      subject,
+      topics: Object.values(topics).map(t => ({
+        name: t.name,
+        frequency: t.count >= 5 ? '높음' : t.count >= 3 ? '중간' : '낮음',
+        years: [...t.years].sort(),
+        count: t.count,
+        description: `${t.count}회 출제 (${[...t.years].sort().join(', ')}년)`
+      })).sort((a, b) => b.count - a.count)
+    }));
+
+    const years = [...new Set(allExtractedQuestions.map(q => q.year))].sort();
+    const analysisData = {
+      summary: `총 ${allExtractedQuestions.length}문제 추출 완료 (${allFileInfos.length}개 파일, ${years.join('~')}년)`,
+      files: allFileInfos,
+      categories,
+      trends: `분석 연도: ${years.join(', ')}년\n총 ${allExtractedQuestions.length}문제 중 과목별: ${Object.entries(allTopicMap).map(([s, t]) => `${s} ${Object.values(t).reduce((sum, x) => sum + x.count, 0)}문제`).join(', ')}`,
+      recommendations: failedFiles.length > 0 ? `⚠️ ${failedFiles.length}개 파일 처리 실패: ${failedFiles.join(', ')}` : '모든 파일이 정상 처리되었습니다.'
+    };
+
+    getState().analysisData = analysisData;
+
+    // 세부과목 자동 등록
+    categories.forEach(cat => {
+      const subject = cat.subject;
+      if (subject && !getState().subjects.includes(subject)) {
+        getState().subjects.push(subject);
+      }
+      if (subject && cat.topics?.length) {
+        if (!getState().subTopics[subject]) getState().subTopics[subject] = [];
+        cat.topics.forEach(t => {
+          if (t.name && !getState().subTopics[subject].includes(t.name)) {
+            getState().subTopics[subject].push(t.name);
+          }
+        });
+      }
+    });
+
+    refreshAllSubjectSelectors();
+    renderSubjectManager();
+    renderSubTopicManager();
     saveState();
     progressFill.style.width = '100%';
 
     renderAnalysisResult(analysisData);
-    showToast(`분석 완료! ${getState().extractedQuestions.length}개 기출문제가 추출되었습니다.`, 'success');
+
+    let msg = `분석 완료! ${allExtractedQuestions.length}문제 추출 (${allFileInfos.length}개 파일)`;
+    if (failedFiles.length > 0) msg += ` / ${failedFiles.length}개 실패`;
+    showToast(msg, failedFiles.length > 0 ? 'warning' : 'success');
 
     const uploadKey = currentMode === 'ncs' ? 'ncs_upload_count' : 'upload_count';
     const prevCount = parseInt(localStorage.getItem(uploadKey) || '0');
-    localStorage.setItem(uploadKey, prevCount + getState().uploadedFiles.length);
+    localStorage.setItem(uploadKey, prevCount + totalFiles);
     updateDashboard();
 
   } catch (e) {
