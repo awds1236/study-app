@@ -599,7 +599,7 @@ body.mode-ncs .cs-only { display: none !important; }
 
 <!-- 메인 -->
 <div class="main">
-<div id="appVersion" style="position:fixed; top:8px; right:16px; z-index:9999; font-size:11px; color:var(--c-text-muted); background:var(--c-bg-card); padding:2px 10px; border-radius:12px; border:1px solid var(--c-border); opacity:0.7;">v2.8.0</div>
+<div id="appVersion" style="position:fixed; top:8px; right:16px; z-index:9999; font-size:11px; color:var(--c-text-muted); background:var(--c-bg-card); padding:2px 10px; border-radius:12px; border:1px solid var(--c-border); opacity:0.7;">v2.9.0</div>
 
   <!-- ===== 홈/대시보드 ===== -->
   <div class="page active" id="page-home">
@@ -1740,17 +1740,29 @@ function renderSubTopicManager() {
   let html = '';
   for (const [subject, topics] of Object.entries(state.subTopics)) {
     if (!state.subjects.includes(subject)) continue;
-    html += `<div style="margin-bottom:12px;">
-      <div style="font-weight:700; color:var(--c-primary); margin-bottom:6px;">${subject}</div>
-      <div style="display:flex; flex-wrap:wrap; gap:6px;">
-        ${topics.map(t => `
-          <span style="display:inline-flex; align-items:center; gap:4px; padding:4px 10px; background:var(--c-bkg-body); border:1px solid var(--c-border); border-radius:20px; font-size:12px;">
-            ${t}
-            <button onclick="removeSubTopic('${subject}', '${t}')" style="background:none; border:none; color:var(--c-danger); cursor:pointer; font-size:14px; padding:0 2px;">&times;</button>
-          </span>
-        `).join('')}
-      </div>
-      <div style="display:flex; gap:6px; margin-top:6px;">
+
+    // 대분류별 그룹핑
+    const groups = groupSubTopicsByMajor(subject);
+    const groupEntries = Object.entries(groups);
+
+    html += `<div style="margin-bottom:16px;">
+      <div style="font-weight:700; color:var(--c-primary); margin-bottom:8px; font-size:15px;">${subject} <span style="font-size:12px; color:var(--c-text-muted); font-weight:400;">(${topics.length}개 → ${groupEntries.length}개 대분류)</span></div>`;
+
+    for (const [majorName, relatedTopics] of groupEntries) {
+      html += `<div style="margin-bottom:8px; margin-left:8px;">
+        <div style="font-weight:600; font-size:13px; color:var(--c-info); margin-bottom:4px;">📂 ${majorName} (${relatedTopics.length})</div>
+        <div style="display:flex; flex-wrap:wrap; gap:4px; margin-left:12px;">
+          ${relatedTopics.map(t => `
+            <span style="display:inline-flex; align-items:center; gap:3px; padding:3px 8px; background:var(--c-bkg-body); border:1px solid var(--c-border); border-radius:16px; font-size:11px;">
+              ${t}
+              <button onclick="removeSubTopic('${subject}', '${t.replace(/'/g, "\\'")}')" style="background:none; border:none; color:var(--c-danger); cursor:pointer; font-size:12px; padding:0 2px;">&times;</button>
+            </span>
+          `).join('')}
+        </div>
+      </div>`;
+    }
+
+    html += `<div style="display:flex; gap:6px; margin-top:6px; margin-left:8px;">
         <input class="input" type="text" placeholder="세부과목 직접 추가..." id="addSubTopic_${subject}" style="flex:1; font-size:12px; padding:6px 10px;" onkeydown="if(event.key==='Enter'){addSubTopicManual('${subject}', this.value);this.value='';}">
         <button class="btn btn-sm btn-secondary" onclick="addSubTopicManual('${subject}', document.getElementById('addSubTopic_${subject}').value); document.getElementById('addSubTopic_${subject}').value='';">추가</button>
       </div>
@@ -3284,23 +3296,77 @@ ${subTopic ? `- "${subTopic}" 분야의 모든 세부 항목을 빠짐없이 다
 - 사람이 직접 작성한 것처럼 자연스럽고 읽기 쉽게 작성하세요`;
 }
 
-// 전체 선택 시 세부과목별 분할 생성
+// ===== 세부과목 → 대분류 자동 그룹핑 =====
+const MAJOR_CATEGORY_MAP = {
+  '컴퓨터일반': {
+    '컴퓨터 구조': ['컴퓨터 구조', '컴퓨터구조', 'CPU', '레지스터', '명령어', '파이프라인', '캐시', '메모리 계층', 'RISC', 'CISC', '버스', '인터럽트', '마이크로', '주소지정', '부동소수점', '보수', '진법', '논리 게이트', '논리게이트', '불 대수', '불대수', '플립플롭', '조합 논리', '순서 논리', 'ALU', '어셈블리', '기계어', 'DMA', '입출력'],
+    '운영체제': ['운영체제', '프로세스', '스레드', '스케줄링', '교착상태', '데드락', '페이지', '세그먼트', '가상 메모리', '가상메모리', '파일 시스템', '파일시스템', '디스크 스케줄링', '세마포어', '뮤텍스', '동기화', '임계영역', 'PCB', '문맥교환', '컨텍스트', '커널', '셸', '시스템 콜', 'IPC', '페이징', 'LRU', 'FIFO', 'SJF', 'Round Robin'],
+    '데이터베이스': ['데이터베이스', 'DB', 'SQL', '정규화', '관계', '트랜잭션', 'ACID', '인덱스', '뷰', '스키마', 'ER', '무결성', 'NoSQL', '조인', '키', '릴레이션', '함수 종속', '함수종속', '이상현상', '역정규화', '분산 데이터', '회복', '동시성', '로킹', '2단계', 'B-트리', 'B트리', '해싱'],
+    '네트워크': ['네트워크', 'OSI', 'TCP', 'UDP', 'IP', 'HTTP', 'DNS', '라우팅', '서브넷', '서브네팅', 'VLAN', '프로토콜', 'MAC', 'ARP', 'ICMP', '소켓', '포트', '패킷', '이더넷', '무선', 'Wi-Fi', 'LAN', 'WAN', 'SMTP', 'FTP', 'DHCP', 'NAT', '방화벽', 'VPN', 'SSL', 'TLS', '3-way', '핸드셰이크', '슬라이딩 윈도우', '흐름제어', '혼잡제어', 'IPv6', 'CIDR', '게이트웨이', '브리지', '스위치', '라우터', '허브'],
+    '소프트웨어공학': ['소프트웨어공학', '소프트웨어 공학', '개발 방법론', '방법론', '애자일', '워터폴', '폭포수', '나선형', 'XP', '스크럼', 'UML', '디자인 패턴', '디자인패턴', '객체지향', 'OOP', '클래스', '상속', '다형성', '캡슐화', '추상화', '테스트', 'SDLC', '요구분석', '설계', 'CASE', '형상관리', '모듈', '결합도', '응집도', 'CMM', 'ISO', '품질', 'V모델', '프로토타입'],
+    '자료구조': ['자료구조', '배열', '연결 리스트', '연결리스트', '스택', '큐', '트리', '그래프', '해시', '힙', '이진', 'B-Tree', 'B트리', 'AVL', '레드블랙', '정렬', '탐색', '버블', '퀵', '머지', '삽입', '선택', '이진 탐색', '이진탐색', 'DFS', 'BFS', '최소 신장', '최단 경로', '다익스트라', '크루스칼', '프림', '위상', '동적 프로그래밍', '동적프로그래밍', '분할 정복', '그리디', '백트래킹', '재귀', '복잡도', 'Big-O', '시간복잡도', '공간복잡도'],
+    '프로그래밍 언어': ['프로그래밍', '언어', 'C언어', 'C++', '자바', 'Java', '파이썬', 'Python', '컴파일러', '인터프리터', '변수', '포인터', '배열', '함수', '구조체', '재귀', '반복', '조건', '연산자', '비트', '전처리기', '매크로', '라이브러리', '오버로딩', '오버라이딩', '예외처리', '제네릭', '스코프', '가비지', '메모리 관리'],
+    '데이터 통신': ['데이터 통신', '데이터통신', '신호', '변조', '다중화', '다중접속', '전송', '대역폭', '오류 검출', '오류검출', '패리티', 'CRC', 'HDLC', '멀티플렉싱', '아날로그', '디지털', '인코딩', '디코딩', 'PCM', 'CDMA', 'TDMA', 'FDMA']
+  },
+  '정보보호론': {
+    '암호학': ['암호', '대칭키', '비대칭키', '공개키', 'AES', 'DES', 'RSA', 'ECC', '해시', 'SHA', 'MD5', '디지털 서명', '전자서명', 'MAC', 'HMAC', 'PKI', '인증서', '키 교환', '디피-헬만', '블록 암호', '스트림 암호', '운영모드', 'CBC', 'ECB'],
+    '네트워크 보안': ['네트워크 보안', '네트워크보안', '방화벽', 'IDS', 'IPS', 'VPN', 'SSL', 'TLS', 'IPSec', 'DoS', 'DDoS', '스니핑', '스푸핑', '세션', 'XSS', 'CSRF', 'SQL 인젝션', 'SQL인젝션', '포트 스캐닝', '침입탐지', '침입차단', 'WAF', '무선 보안', 'WPA', 'WEP'],
+    '시스템 보안': ['시스템 보안', '시스템보안', '접근제어', '접근통제', 'DAC', 'MAC', 'RBAC', '인증', '식별', '권한', '로그', '감사', '백업', '복구', '취약점', '패치', '바이러스', '악성코드', '웜', '트로이', '랜섬웨어', '루트킷', '버퍼 오버플로우', '버퍼오버플로우', '사용자 인증', '비밀번호', '생체인증', 'OTP'],
+    '정보보호 관리': ['정보보호 관리', '관리체계', 'ISMS', 'ISO 27001', 'ISO27001', '위험관리', '위험분석', '위험평가', 'BCP', 'DRP', '재해복구', '보안정책', '보안 정책', '개인정보', '개인정보보호', '정보보호법', '전자정부', '전자금융', '법규', '컴플라이언스', 'GDPR', '클라우드 보안', '클라우드보안']
+  }
+};
+
+// 세부과목을 대분류로 매핑
+function getMajorCategory(subject, subTopic) {
+  const categoryMap = MAJOR_CATEGORY_MAP[subject];
+  if (!categoryMap) return '기타';
+
+  const stLower = subTopic.toLowerCase();
+  for (const [major, keywords] of Object.entries(categoryMap)) {
+    for (const kw of keywords) {
+      if (stLower.includes(kw.toLowerCase()) || kw.toLowerCase().includes(stLower)) {
+        return major;
+      }
+    }
+  }
+  return '기타';
+}
+
+// 세부과목을 대분류별로 그룹핑
+function groupSubTopicsByMajor(subject) {
+  const subTopics = getSubTopics(subject);
+  const groups = {};
+  subTopics.forEach(st => {
+    const major = getMajorCategory(subject, st);
+    if (!groups[major]) groups[major] = [];
+    groups[major].push(st);
+  });
+  return groups;
+}
+
+// 전체 선택 시 대분류별 분할 생성 (비용 절감: 81개 → ~8개 API 호출)
 async function generateConceptBySubTopics(subject, subTopics) {
   const loading = document.getElementById('conceptLoading');
   const loadingText = document.getElementById('conceptLoadingText');
   loading.classList.add('show');
 
+  // 대분류로 그룹핑
+  const groups = groupSubTopicsByMajor(subject);
+  const majorCategories = Object.entries(groups);
+
   const results = [];
   try {
-    for (let i = 0; i < subTopics.length; i++) {
-      const st = subTopics[i];
-      loadingText.textContent = `[${i + 1}/${subTopics.length}] "${st}" 개념 정리 중...`;
-      const prompt = buildConceptPrompt(subject, st, '', st);
+    for (let i = 0; i < majorCategories.length; i++) {
+      const [majorName, relatedTopics] = majorCategories[i];
+      loadingText.textContent = `[${i + 1}/${majorCategories.length}] "${majorName}" (${relatedTopics.length}개 세부과목) 개념 정리 중...`;
+
+      // 대분류에 속한 세부과목들을 모두 포함하여 개념 정리
+      const topicsList = relatedTopics.join(', ');
+      const prompt = buildConceptPrompt(subject, '', topicsList, `${subject} - ${majorName}`);
       const result = await callGemini(prompt);
-      results.push({ subTopic: st, content: result });
+      results.push({ subTopic: `${majorName} (${relatedTopics.length}개: ${topicsList})`, content: result });
     }
 
-    // 통합 개념으로 저장
     const concept = {
       id: generateId(),
       subject: subject,
@@ -3316,7 +3382,7 @@ async function generateConceptBySubTopics(subject, subTopics) {
     saveState();
     renderConceptResult(concept);
     renderSavedConcepts();
-    showToast(`${subject} 전체 개념 정리 완료! (${subTopics.length}개 세부과목)`, 'success');
+    showToast(`${subject} 전체 개념 정리 완료! (${majorCategories.length}개 대분류, ${subTopics.length}개 세부과목)`, 'success');
   } catch (e) {
     showToast('개념 정리 실패: ' + e.message, 'error');
   } finally {
@@ -3324,7 +3390,7 @@ async function generateConceptBySubTopics(subject, subTopics) {
   }
 }
 
-// "전체" 선택 시 모든 과목의 세부과목을 한번에 생성 → 탭 뷰
+// "전체" 선택 시 모든 과목의 대분류별 생성
 async function generateAllSubjectsConcept() {
   const loading = document.getElementById('conceptLoading');
   const loadingText = document.getElementById('conceptLoadingText');
@@ -3338,19 +3404,23 @@ async function generateAllSubjectsConcept() {
   }
 
   const results = [];
+  // 대분류별 총 개수 계산
   let totalSteps = 0;
-  allSubjects.forEach(s => { totalSteps += getSubTopics(s).length; });
+  allSubjects.forEach(s => {
+    totalSteps += Object.keys(groupSubTopicsByMajor(s)).length;
+  });
   let currentStep = 0;
 
   try {
     for (const subj of allSubjects) {
-      const subs = getSubTopics(subj);
-      for (const st of subs) {
+      const groups = groupSubTopicsByMajor(subj);
+      for (const [majorName, relatedTopics] of Object.entries(groups)) {
         currentStep++;
-        loadingText.textContent = `[${currentStep}/${totalSteps}] ${subj} > "${st}" 개념 정리 중...`;
-        const prompt = buildConceptPrompt(subj, st, '', `${subj} - ${st}`);
+        loadingText.textContent = `[${currentStep}/${totalSteps}] ${subj} > "${majorName}" (${relatedTopics.length}개) 개념 정리 중...`;
+        const topicsList = relatedTopics.join(', ');
+        const prompt = buildConceptPrompt(subj, '', topicsList, `${subj} - ${majorName}`);
         const result = await callGemini(prompt);
-        results.push({ subTopic: `${subj} > ${st}`, content: result });
+        results.push({ subTopic: `${subj} > ${majorName}`, content: result });
       }
     }
 
