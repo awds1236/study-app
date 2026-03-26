@@ -8,6 +8,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 <style>
 /* ===== Theme Variables ===== */
 :root {
@@ -1956,6 +1958,25 @@ async function fileToBase64(file) {
   });
 }
 
+// PDF에서 텍스트 추출 (PDF.js 사용, 비용 절감)
+async function extractTextFromPdf(file) {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let text = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const pageText = content.items.map(item => item.str).join(' ');
+      text += `[${i}페이지]\n${pageText}\n\n`;
+    }
+    return text.trim();
+  } catch (e) {
+    console.warn('PDF.js 텍스트 추출 실패, PDF 바이너리 모드로 전환:', e);
+    return null; // null이면 바이너리 폴백
+  }
+}
+
 async function analyzeFiles() {
   if (getState().uploadedFiles.length === 0) return;
 
@@ -2011,18 +2032,21 @@ async function analyzeFiles() {
       progressFill.style.width = pctBase + '%';
 
       try {
-        const base64 = await fileToBase64(file);
-        const pdfData = [{ name: fileName, data: base64 }];
+        // 텍스트 추출 시도 (비용 절감: PDF 바이너리 대신 텍스트만 전송)
+        document.getElementById('analyzeLoadingText').textContent = `텍스트 추출 중... (${fi + 1}/${totalFiles}) ${fileName}`;
+        const pdfText = await extractTextFromPdf(file);
+        const useTextMode = pdfText && pdfText.length > 100;
 
         const extractPrompt = `당신은 ${analyzeContext} 전문가입니다.
 ${subjectGuide}
 
-이 PDF 파일 정보:
+이 파일 정보:
 - 파일명: "${fileName}"
-- 추정 연도: ${guessedYear || '파일명에서 확인 불가 - PDF 내용에서 확인하세요'}
-- 추정 과목: ${guessedSubject || '파일명에서 확인 불가 - PDF 내용에서 확인하세요'}
+- 추정 연도: ${guessedYear || '내용에서 확인하세요'}
+- 추정 과목: ${guessedSubject || '내용에서 확인하세요'}
+${useTextMode ? `\n아래는 PDF에서 추출한 시험 문제 텍스트입니다:\n\n${pdfText}` : ''}
 
-이 PDF에서 **모든 문제를 하나하나 빠짐없이** 추출하여 다음 JSON 형식으로 반환해주세요:
+이 시험지에서 **모든 문제를 하나하나 빠짐없이** 추출하여 다음 JSON 형식으로 반환해주세요:
 
 {
   "fileInfo": {
@@ -2034,8 +2058,8 @@ ${subjectGuide}
   "questions": [
     {
       "number": 문제번호,
-      "subject": "과목명 (컴퓨터일반 또는 정보보호론)",
-      "topic": "구체적인 세부 주제명 (예: 이진 탐색 트리, RSA 암호, 페이지 교체 알고리즘, TCP 3-way handshake 등)",
+      "subject": "과목명 (${currentMode === 'ncs' ? 'NCS 영역명' : '컴퓨터일반 또는 정보보호론'})",
+      "topic": "구체적인 세부 주제명 (예: 이진 탐색 트리, RSA 암호, 페이지 교체 알고리즘 등)",
       "question": "문제 전체 내용 (보기/조건 포함, 원문 그대로 정확히)",
       "options": ["1번 선택지 전체", "2번 선택지 전체", "3번 선택지 전체", "4번 선택지 전체"],
       "answer": 정답번호(0부터 시작: 0=1번, 1=2번, 2=3번, 3=4번),
@@ -2053,7 +2077,17 @@ ${subjectGuide}
 - year는 반드시 4자리 연도로 작성하세요 (예: "2024")
 - 반드시 유효한 JSON만 반환하세요. 마크다운 코드 블록 없이.`;
 
-        const result = await callGeminiWithPdf(pdfData, extractPrompt);
+        document.getElementById('analyzeLoadingText').textContent = `AI 분석 중... (${fi + 1}/${totalFiles}) ${fileName}`;
+        let result;
+        if (useTextMode) {
+          // 텍스트 모드: callGemini로 텍스트만 전송 (비용 대폭 절감)
+          result = await callGemini(extractPrompt);
+        } else {
+          // 폴백: PDF 바이너리 전송 (텍스트 추출 실패 시)
+          const base64 = await fileToBase64(file);
+          const pdfData = [{ name: fileName, data: base64 }];
+          result = await callGeminiWithPdf(pdfData, extractPrompt);
+        }
 
         let parsed;
         try {
