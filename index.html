@@ -3119,8 +3119,8 @@ function getRelatedExamQuestions(subject, subTopic, maxCount = 10) {
   if (filtered.length === 0) return '';
 
   const summary = filtered.map(q =>
-    `[${q.year}년 ${q.number || ''}번] (${q.topic || '기타'}) ${(q.question || '').substring(0, 120)}${q.options ? '\n  ' + q.options.map((o, i) => `${i+1}.${o.substring(0, 40)}`).join(' ') : ''}`
-  ).join('\n');
+    `[${q.year}년 ${q.number || ''}번] (${q.topic || '기타'}) ${q.question || ''}${q.options ? '\n  ' + q.options.map((o, i) => `${i+1}. ${o}`).join('\n  ') : ''}`
+  ).join('\n\n');
 
   return `\n\n📋 관련 기출문제 (${filtered.length}문제):\n${summary}`;
 }
