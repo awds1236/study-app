@@ -599,7 +599,7 @@ body.mode-ncs .cs-only { display: none !important; }
 
 <!-- 메인 -->
 <div class="main">
-<div id="appVersion" style="position:fixed; top:8px; right:16px; z-index:9999; font-size:11px; color:var(--c-text-muted); background:var(--c-bg-card); padding:2px 10px; border-radius:12px; border:1px solid var(--c-border); opacity:0.7;">v2.6.0</div>
+<div id="appVersion" style="position:fixed; top:8px; right:16px; z-index:9999; font-size:11px; color:var(--c-text-muted); background:var(--c-bg-card); padding:2px 10px; border-radius:12px; border:1px solid var(--c-border); opacity:0.7;">v2.7.0</div>
 
   <!-- ===== 홈/대시보드 ===== -->
   <div class="page active" id="page-home">
@@ -1240,6 +1240,44 @@ function setSyncingUI(syncing) {
   }
 }
 
+// 대용량 배열을 청크로 분할 (Firestore 문서 1MB 제한 대응)
+function chunkArray(arr, chunkSize = 50) {
+  const chunks = [];
+  for (let i = 0; i < arr.length; i += chunkSize) {
+    chunks.push(arr.slice(i, i + chunkSize));
+  }
+  return chunks;
+}
+
+// 대용량 데이터를 subcollection에 분할 저장
+async function saveLargeData(userDoc, key, data) {
+  const subCol = userDoc.collection(key);
+  // 기존 데이터 삭제
+  const existing = await subCol.get();
+  const batch1 = firebaseDb.batch();
+  existing.docs.forEach(doc => batch1.delete(doc.ref));
+  if (existing.docs.length > 0) await batch1.commit();
+
+  // 청크 단위로 저장
+  const chunks = chunkArray(data, 50);
+  for (let i = 0; i < chunks.length; i++) {
+    await subCol.doc(`chunk_${i}`).set({ items: chunks[i], index: i, total: chunks.length });
+  }
+}
+
+// subcollection에서 대용량 데이터 읽기
+async function loadLargeData(userDoc, key) {
+  const subCol = userDoc.collection(key);
+  const snapshot = await subCol.orderBy('index').get();
+  if (snapshot.empty) return null;
+  let result = [];
+  snapshot.docs.forEach(doc => {
+    const d = doc.data();
+    if (d.items) result = result.concat(d.items);
+  });
+  return result;
+}
+
 async function syncToCloud(silent = false) {
   if (!firebaseDb || !firebaseAuth?.currentUser) {
     if (!silent) showToast('로그인이 필요합니다.', 'error');
@@ -1249,45 +1287,61 @@ async function syncToCloud(silent = false) {
   isSyncing = true;
   setSyncingUI(true);
   try {
-    const data = {
+    const uid = firebaseAuth.currentUser.uid;
+    const userDoc = firebaseDb.collection('users').doc(uid);
+
+    // 소용량 데이터는 메인 문서에 저장
+    const mainData = {
       subjects: APP_STATE.subjects,
       subTopics: APP_STATE.subTopics,
-      concepts: APP_STATE.concepts,
       weaknesses: APP_STATE.weaknesses,
-      weaknessConcepts: APP_STATE.weaknessConcepts,
-      weaknessQuizzes: APP_STATE.weaknessQuizzes,
       quizHistory: APP_STATE.quizHistory,
-      generatedQuizzes: APP_STATE.generatedQuizzes,
       analysisData: APP_STATE.analysisData,
-      extractedQuestions: APP_STATE.extractedQuestions,
       previousQuestions: APP_STATE.previousQuestions,
       uploadCount: localStorage.getItem('upload_count') || '0',
-      // CS 모드 데이터
+      // CS
       cs_subjects: CS_STATE.subjects,
       cs_subTopics: CS_STATE.subTopics,
-      cs_concepts: CS_STATE.concepts,
       cs_weaknesses: CS_STATE.weaknesses,
-      cs_weaknessConcepts: CS_STATE.weaknessConcepts,
-      cs_weaknessQuizzes: CS_STATE.weaknessQuizzes,
       cs_quizHistory: CS_STATE.quizHistory,
-      cs_generatedQuizzes: CS_STATE.generatedQuizzes,
       cs_previousQuestions: CS_STATE.previousQuestions,
-      // NCS 모드 데이터
+      // NCS
       ncs_subjects: NCS_STATE.subjects,
       ncs_subTopics: NCS_STATE.subTopics,
       ncs_analysisData: NCS_STATE.analysisData,
-      ncs_extractedQuestions: NCS_STATE.extractedQuestions,
-      ncs_concepts: NCS_STATE.concepts,
       ncs_weaknesses: NCS_STATE.weaknesses,
-      ncs_weaknessConcepts: NCS_STATE.weaknessConcepts,
-      ncs_weaknessQuizzes: NCS_STATE.weaknessQuizzes,
       ncs_quizHistory: NCS_STATE.quizHistory,
-      ncs_generatedQuizzes: NCS_STATE.generatedQuizzes,
       ncs_previousQuestions: NCS_STATE.previousQuestions,
       ncs_uploadCount: localStorage.getItem('ncs_upload_count') || '0',
-      updatedAt: Date.now()
+      updatedAt: Date.now(),
+      version: 2 // 분할 저장 버전 표시
     };
-    await firebaseDb.collection('users').doc(firebaseAuth.currentUser.uid).set(data, { merge: true });
+    await userDoc.set(mainData, { merge: true });
+
+    // 대용량 데이터는 subcollection에 분할 저장
+    const largeFields = [
+      ['extractedQuestions', APP_STATE.extractedQuestions],
+      ['concepts', APP_STATE.concepts],
+      ['weaknessConcepts', APP_STATE.weaknessConcepts],
+      ['weaknessQuizzes', APP_STATE.weaknessQuizzes],
+      ['generatedQuizzes', APP_STATE.generatedQuizzes],
+      ['cs_concepts', CS_STATE.concepts],
+      ['cs_weaknessConcepts', CS_STATE.weaknessConcepts],
+      ['cs_weaknessQuizzes', CS_STATE.weaknessQuizzes],
+      ['cs_generatedQuizzes', CS_STATE.generatedQuizzes],
+      ['ncs_extractedQuestions', NCS_STATE.extractedQuestions],
+      ['ncs_concepts', NCS_STATE.concepts],
+      ['ncs_weaknessConcepts', NCS_STATE.weaknessConcepts],
+      ['ncs_weaknessQuizzes', NCS_STATE.weaknessQuizzes],
+      ['ncs_generatedQuizzes', NCS_STATE.generatedQuizzes],
+    ];
+
+    for (const [key, arr] of largeFields) {
+      if (arr && arr.length > 0) {
+        await saveLargeData(userDoc, key, arr);
+      }
+    }
+
     localStorage.setItem('last_sync_time', Date.now().toString());
     if (!silent) showToast('클라우드에 저장되었습니다!', 'success');
   } catch (e) {
@@ -1307,7 +1361,9 @@ async function syncFromCloud(silent = false) {
   isSyncing = true;
   setSyncingUI(true);
   try {
-    const doc = await firebaseDb.collection('users').doc(firebaseAuth.currentUser.uid).get();
+    const uid = firebaseAuth.currentUser.uid;
+    const userDoc = firebaseDb.collection('users').doc(uid);
+    const doc = await userDoc.get();
     if (!doc.exists) {
       if (!silent) showToast('클라우드에 저장된 데이터가 없습니다. 먼저 저장해주세요.', 'info');
       return;
@@ -1321,45 +1377,79 @@ async function syncFromCloud(silent = false) {
       if (!confirm('로컬 데이터가 더 최신입니다. 클라우드 데이터로 덮어쓰시겠습니까?')) return;
     }
 
+    // 메인 문서에서 소용량 데이터 복원
     if (data.subjects?.length) APP_STATE.subjects = data.subjects;
     if (data.subTopics) APP_STATE.subTopics = data.subTopics;
-    if (data.concepts) APP_STATE.concepts = data.concepts;
     if (data.weaknesses) APP_STATE.weaknesses = data.weaknesses;
-    if (data.weaknessConcepts) APP_STATE.weaknessConcepts = data.weaknessConcepts;
-    if (data.weaknessQuizzes) APP_STATE.weaknessQuizzes = data.weaknessQuizzes;
     if (data.quizHistory) APP_STATE.quizHistory = data.quizHistory;
-    if (data.generatedQuizzes) APP_STATE.generatedQuizzes = data.generatedQuizzes;
     if (data.analysisData) APP_STATE.analysisData = data.analysisData;
-    if (data.extractedQuestions) APP_STATE.extractedQuestions = data.extractedQuestions;
     if (data.previousQuestions) APP_STATE.previousQuestions = data.previousQuestions;
     if (data.uploadCount) localStorage.setItem('upload_count', data.uploadCount);
-    // CS 모드 복원
+    // CS
     if (data.cs_subjects?.length) CS_STATE.subjects = data.cs_subjects;
     if (data.cs_subTopics) CS_STATE.subTopics = data.cs_subTopics;
-    if (data.cs_concepts) CS_STATE.concepts = data.cs_concepts;
     if (data.cs_weaknesses) CS_STATE.weaknesses = data.cs_weaknesses;
-    if (data.cs_weaknessConcepts) CS_STATE.weaknessConcepts = data.cs_weaknessConcepts;
-    if (data.cs_weaknessQuizzes) CS_STATE.weaknessQuizzes = data.cs_weaknessQuizzes;
     if (data.cs_quizHistory) CS_STATE.quizHistory = data.cs_quizHistory;
-    if (data.cs_generatedQuizzes) CS_STATE.generatedQuizzes = data.cs_generatedQuizzes;
     if (data.cs_previousQuestions) CS_STATE.previousQuestions = data.cs_previousQuestions;
-    // NCS 모드 복원
+    // NCS
     if (data.ncs_subjects?.length) NCS_STATE.subjects = data.ncs_subjects;
     if (data.ncs_subTopics) NCS_STATE.subTopics = data.ncs_subTopics;
     if (data.ncs_analysisData) NCS_STATE.analysisData = data.ncs_analysisData;
-    if (data.ncs_extractedQuestions) NCS_STATE.extractedQuestions = data.ncs_extractedQuestions;
-    if (data.ncs_concepts) NCS_STATE.concepts = data.ncs_concepts;
     if (data.ncs_weaknesses) NCS_STATE.weaknesses = data.ncs_weaknesses;
-    if (data.ncs_weaknessConcepts) NCS_STATE.weaknessConcepts = data.ncs_weaknessConcepts;
-    if (data.ncs_weaknessQuizzes) NCS_STATE.weaknessQuizzes = data.ncs_weaknessQuizzes;
     if (data.ncs_quizHistory) NCS_STATE.quizHistory = data.ncs_quizHistory;
-    if (data.ncs_generatedQuizzes) NCS_STATE.generatedQuizzes = data.ncs_generatedQuizzes;
     if (data.ncs_previousQuestions) NCS_STATE.previousQuestions = data.ncs_previousQuestions;
     if (data.ncs_uploadCount) localStorage.setItem('ncs_upload_count', data.ncs_uploadCount);
+
+    // 대용량 데이터를 subcollection에서 복원 (v2 형식)
+    if (data.version >= 2) {
+      const largeFieldMap = [
+        ['extractedQuestions', APP_STATE, 'extractedQuestions'],
+        ['concepts', APP_STATE, 'concepts'],
+        ['weaknessConcepts', APP_STATE, 'weaknessConcepts'],
+        ['weaknessQuizzes', APP_STATE, 'weaknessQuizzes'],
+        ['generatedQuizzes', APP_STATE, 'generatedQuizzes'],
+        ['cs_concepts', CS_STATE, 'concepts'],
+        ['cs_weaknessConcepts', CS_STATE, 'weaknessConcepts'],
+        ['cs_weaknessQuizzes', CS_STATE, 'weaknessQuizzes'],
+        ['cs_generatedQuizzes', CS_STATE, 'generatedQuizzes'],
+        ['ncs_extractedQuestions', NCS_STATE, 'extractedQuestions'],
+        ['ncs_concepts', NCS_STATE, 'concepts'],
+        ['ncs_weaknessConcepts', NCS_STATE, 'weaknessConcepts'],
+        ['ncs_weaknessQuizzes', NCS_STATE, 'weaknessQuizzes'],
+        ['ncs_generatedQuizzes', NCS_STATE, 'generatedQuizzes'],
+      ];
+
+      for (const [key, stateObj, field] of largeFieldMap) {
+        const loaded = await loadLargeData(userDoc, key);
+        if (loaded && loaded.length > 0) {
+          stateObj[field] = loaded;
+        }
+      }
+    } else {
+      // v1 형식 호환 (기존 단일 문서에서 읽기)
+      if (data.extractedQuestions) APP_STATE.extractedQuestions = data.extractedQuestions;
+      if (data.concepts) APP_STATE.concepts = data.concepts;
+      if (data.weaknessConcepts) APP_STATE.weaknessConcepts = data.weaknessConcepts;
+      if (data.weaknessQuizzes) APP_STATE.weaknessQuizzes = data.weaknessQuizzes;
+      if (data.generatedQuizzes) APP_STATE.generatedQuizzes = data.generatedQuizzes;
+      if (data.cs_concepts) CS_STATE.concepts = data.cs_concepts;
+      if (data.cs_weaknessConcepts) CS_STATE.weaknessConcepts = data.cs_weaknessConcepts;
+      if (data.cs_weaknessQuizzes) CS_STATE.weaknessQuizzes = data.cs_weaknessQuizzes;
+      if (data.cs_generatedQuizzes) CS_STATE.generatedQuizzes = data.cs_generatedQuizzes;
+      if (data.ncs_extractedQuestions) NCS_STATE.extractedQuestions = data.ncs_extractedQuestions;
+      if (data.ncs_concepts) NCS_STATE.concepts = data.ncs_concepts;
+      if (data.ncs_weaknessConcepts) NCS_STATE.weaknessConcepts = data.ncs_weaknessConcepts;
+      if (data.ncs_weaknessQuizzes) NCS_STATE.weaknessQuizzes = data.ncs_weaknessQuizzes;
+      if (data.ncs_generatedQuizzes) NCS_STATE.generatedQuizzes = data.ncs_generatedQuizzes;
+    }
 
     saveState();
     refreshAllSubjectSelectors();
     renderSubjectManager();
+    renderSubTopicManager();
+    initExamPractice();
+    updateDashboard();
+    if (getState().analysisData) renderAnalysisResult(getState().analysisData);
     localStorage.setItem('last_sync_time', Date.now().toString());
     if (!silent) showToast('클라우드에서 데이터를 불러왔습니다!', 'success');
   } catch (e) {
