@@ -1378,13 +1378,89 @@ function toggleAutoSync() {
 // ==================== 전역 상태 ====================
 function safeParseArray(key) {
   try {
-    const val = JSON.parse(localStorage.getItem(key) || '[]');
+    const raw = localStorage.getItem(key);
+    if (raw === '__IDB__') return []; // IndexedDB에서 나중에 로드됨
+    const val = JSON.parse(raw || '[]');
     return Array.isArray(val) ? val : [];
   } catch { return []; }
 }
 function safeParseJSON(key) {
-  try { return JSON.parse(localStorage.getItem(key) || 'null'); }
-  catch { return null; }
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw === '__IDB__') return null; // IndexedDB에서 나중에 로드됨
+    return JSON.parse(raw || 'null');
+  } catch { return null; }
+}
+
+// 앱 시작 시 IndexedDB에 저장된 대용량 데이터 복원
+async function restoreFromIDB() {
+  const keysToCheck = [
+    'extracted_questions', 'concepts', 'weaknesses', 'weakness_concepts',
+    'weakness_quizzes', 'quiz_history', 'generated_quizzes', 'previous_questions',
+    'analysis_data', 'subjects', 'sub_topics',
+    'cs_concepts', 'cs_weaknesses', 'cs_weakness_concepts', 'cs_weakness_quizzes',
+    'cs_quiz_history', 'cs_generated_quizzes', 'cs_previous_questions',
+    'ncs_extracted_questions', 'ncs_concepts', 'ncs_weaknesses', 'ncs_weakness_concepts',
+    'ncs_weakness_quizzes', 'ncs_quiz_history', 'ncs_generated_quizzes', 'ncs_previous_questions',
+    'ncs_analysis_data', 'ncs_subjects', 'ncs_sub_topics'
+  ];
+
+  // 상태 키 → 객체/필드 매핑
+  const stateMap = {
+    'extracted_questions': [APP_STATE, 'extractedQuestions'],
+    'concepts': [APP_STATE, 'concepts'],
+    'weaknesses': [APP_STATE, 'weaknesses'],
+    'weakness_concepts': [APP_STATE, 'weaknessConcepts'],
+    'weakness_quizzes': [APP_STATE, 'weaknessQuizzes'],
+    'quiz_history': [APP_STATE, 'quizHistory'],
+    'generated_quizzes': [APP_STATE, 'generatedQuizzes'],
+    'previous_questions': [APP_STATE, 'previousQuestions'],
+    'analysis_data': [APP_STATE, 'analysisData'],
+    'subjects': [APP_STATE, 'subjects'],
+    'sub_topics': [APP_STATE, 'subTopics'],
+    'cs_concepts': [CS_STATE, 'concepts'],
+    'cs_weaknesses': [CS_STATE, 'weaknesses'],
+    'cs_weakness_concepts': [CS_STATE, 'weaknessConcepts'],
+    'cs_weakness_quizzes': [CS_STATE, 'weaknessQuizzes'],
+    'cs_quiz_history': [CS_STATE, 'quizHistory'],
+    'cs_generated_quizzes': [CS_STATE, 'generatedQuizzes'],
+    'cs_previous_questions': [CS_STATE, 'previousQuestions'],
+    'ncs_extracted_questions': [NCS_STATE, 'extractedQuestions'],
+    'ncs_concepts': [NCS_STATE, 'concepts'],
+    'ncs_weaknesses': [NCS_STATE, 'weaknesses'],
+    'ncs_weakness_concepts': [NCS_STATE, 'weaknessConcepts'],
+    'ncs_weakness_quizzes': [NCS_STATE, 'weaknessQuizzes'],
+    'ncs_quiz_history': [NCS_STATE, 'quizHistory'],
+    'ncs_generated_quizzes': [NCS_STATE, 'generatedQuizzes'],
+    'ncs_previous_questions': [NCS_STATE, 'previousQuestions'],
+    'ncs_analysis_data': [NCS_STATE, 'analysisData'],
+    'ncs_subjects': [NCS_STATE, 'subjects'],
+    'ncs_sub_topics': [NCS_STATE, 'subTopics']
+  };
+
+  let restored = 0;
+  for (const key of keysToCheck) {
+    const raw = localStorage.getItem(key);
+    if (raw === '__IDB__') {
+      const val = await idbGet(key);
+      if (val !== undefined && stateMap[key]) {
+        try {
+          const parsed = JSON.parse(val);
+          const [obj, field] = stateMap[key];
+          obj[field] = parsed;
+          restored++;
+        } catch {}
+      }
+    }
+  }
+  if (restored > 0) {
+    console.log(`IndexedDB에서 ${restored}개 데이터 복원 완료`);
+    refreshAllSubjectSelectors();
+    renderSubjectManager();
+    renderSubTopicManager();
+    updateDashboard();
+    if (getState().analysisData) renderAnalysisResult(getState().analysisData);
+  }
 }
 
 const DEFAULT_SUBJECTS = ['컴퓨터일반', '정보보호론'];
@@ -1613,41 +1689,97 @@ function removeSubTopic(subject, topic) {
   showToast(`"${topic}" 세부과목이 삭제되었습니다.`, 'info');
 }
 
+// ===== IndexedDB 헬퍼 (대용량 데이터 저장) =====
+function openStudyDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('StudyAppDB', 1);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('data')) {
+        db.createObjectStore('data');
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function idbSet(key, value) {
+  try {
+    const db = await openStudyDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('data', 'readwrite');
+      tx.objectStore('data').put(value, key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (e) {
+    console.error('IndexedDB 저장 실패:', key, e);
+  }
+}
+
+async function idbGet(key) {
+  try {
+    const db = await openStudyDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('data', 'readonly');
+      const req = tx.objectStore('data').get(key);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  } catch (e) {
+    console.error('IndexedDB 읽기 실패:', key, e);
+    return undefined;
+  }
+}
+
+// localStorage에 안전하게 저장 (용량 초과 시 IndexedDB 폴백)
+function safeSetItem(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch (e) {
+    // localStorage 용량 초과 - IndexedDB로 저장
+    console.warn(`localStorage 용량 초과 (${key}), IndexedDB로 저장`);
+    localStorage.setItem(key, '__IDB__'); // IndexedDB에 있다는 마커
+    idbSet(key, value);
+  }
+}
+
 function saveState() {
   // 기출 분석 모드 데이터 저장
-  localStorage.setItem('subjects', JSON.stringify(APP_STATE.subjects));
-  localStorage.setItem('sub_topics', JSON.stringify(APP_STATE.subTopics));
-  localStorage.setItem('analysis_data', JSON.stringify(APP_STATE.analysisData));
-  localStorage.setItem('extracted_questions', JSON.stringify(APP_STATE.extractedQuestions));
-  localStorage.setItem('concepts', JSON.stringify(APP_STATE.concepts));
-  localStorage.setItem('weaknesses', JSON.stringify(APP_STATE.weaknesses));
-  localStorage.setItem('weakness_concepts', JSON.stringify(APP_STATE.weaknessConcepts));
-  localStorage.setItem('weakness_quizzes', JSON.stringify(APP_STATE.weaknessQuizzes));
-  localStorage.setItem('quiz_history', JSON.stringify(APP_STATE.quizHistory));
-  localStorage.setItem('generated_quizzes', JSON.stringify(APP_STATE.generatedQuizzes));
-  localStorage.setItem('previous_questions', JSON.stringify(APP_STATE.previousQuestions));
+  safeSetItem('subjects', JSON.stringify(APP_STATE.subjects));
+  safeSetItem('sub_topics', JSON.stringify(APP_STATE.subTopics));
+  safeSetItem('analysis_data', JSON.stringify(APP_STATE.analysisData));
+  safeSetItem('extracted_questions', JSON.stringify(APP_STATE.extractedQuestions));
+  safeSetItem('concepts', JSON.stringify(APP_STATE.concepts));
+  safeSetItem('weaknesses', JSON.stringify(APP_STATE.weaknesses));
+  safeSetItem('weakness_concepts', JSON.stringify(APP_STATE.weaknessConcepts));
+  safeSetItem('weakness_quizzes', JSON.stringify(APP_STATE.weaknessQuizzes));
+  safeSetItem('quiz_history', JSON.stringify(APP_STATE.quizHistory));
+  safeSetItem('generated_quizzes', JSON.stringify(APP_STATE.generatedQuizzes));
+  safeSetItem('previous_questions', JSON.stringify(APP_STATE.previousQuestions));
   // 전산학 학습 모드 데이터 저장
-  localStorage.setItem('cs_subjects', JSON.stringify(CS_STATE.subjects));
-  localStorage.setItem('cs_sub_topics', JSON.stringify(CS_STATE.subTopics));
-  localStorage.setItem('cs_concepts', JSON.stringify(CS_STATE.concepts));
-  localStorage.setItem('cs_weaknesses', JSON.stringify(CS_STATE.weaknesses));
-  localStorage.setItem('cs_weakness_concepts', JSON.stringify(CS_STATE.weaknessConcepts));
-  localStorage.setItem('cs_weakness_quizzes', JSON.stringify(CS_STATE.weaknessQuizzes));
-  localStorage.setItem('cs_quiz_history', JSON.stringify(CS_STATE.quizHistory));
-  localStorage.setItem('cs_generated_quizzes', JSON.stringify(CS_STATE.generatedQuizzes));
-  localStorage.setItem('cs_previous_questions', JSON.stringify(CS_STATE.previousQuestions));
+  safeSetItem('cs_subjects', JSON.stringify(CS_STATE.subjects));
+  safeSetItem('cs_sub_topics', JSON.stringify(CS_STATE.subTopics));
+  safeSetItem('cs_concepts', JSON.stringify(CS_STATE.concepts));
+  safeSetItem('cs_weaknesses', JSON.stringify(CS_STATE.weaknesses));
+  safeSetItem('cs_weakness_concepts', JSON.stringify(CS_STATE.weaknessConcepts));
+  safeSetItem('cs_weakness_quizzes', JSON.stringify(CS_STATE.weaknessQuizzes));
+  safeSetItem('cs_quiz_history', JSON.stringify(CS_STATE.quizHistory));
+  safeSetItem('cs_generated_quizzes', JSON.stringify(CS_STATE.generatedQuizzes));
+  safeSetItem('cs_previous_questions', JSON.stringify(CS_STATE.previousQuestions));
   // NCS 직업기초능력 모드 데이터 저장
-  localStorage.setItem('ncs_subjects', JSON.stringify(NCS_STATE.subjects));
-  localStorage.setItem('ncs_sub_topics', JSON.stringify(NCS_STATE.subTopics));
-  localStorage.setItem('ncs_analysis_data', JSON.stringify(NCS_STATE.analysisData));
-  localStorage.setItem('ncs_extracted_questions', JSON.stringify(NCS_STATE.extractedQuestions));
-  localStorage.setItem('ncs_concepts', JSON.stringify(NCS_STATE.concepts));
-  localStorage.setItem('ncs_weaknesses', JSON.stringify(NCS_STATE.weaknesses));
-  localStorage.setItem('ncs_weakness_concepts', JSON.stringify(NCS_STATE.weaknessConcepts));
-  localStorage.setItem('ncs_weakness_quizzes', JSON.stringify(NCS_STATE.weaknessQuizzes));
-  localStorage.setItem('ncs_quiz_history', JSON.stringify(NCS_STATE.quizHistory));
-  localStorage.setItem('ncs_generated_quizzes', JSON.stringify(NCS_STATE.generatedQuizzes));
-  localStorage.setItem('ncs_previous_questions', JSON.stringify(NCS_STATE.previousQuestions));
+  safeSetItem('ncs_subjects', JSON.stringify(NCS_STATE.subjects));
+  safeSetItem('ncs_sub_topics', JSON.stringify(NCS_STATE.subTopics));
+  safeSetItem('ncs_analysis_data', JSON.stringify(NCS_STATE.analysisData));
+  safeSetItem('ncs_extracted_questions', JSON.stringify(NCS_STATE.extractedQuestions));
+  safeSetItem('ncs_concepts', JSON.stringify(NCS_STATE.concepts));
+  safeSetItem('ncs_weaknesses', JSON.stringify(NCS_STATE.weaknesses));
+  safeSetItem('ncs_weakness_concepts', JSON.stringify(NCS_STATE.weaknessConcepts));
+  safeSetItem('ncs_weakness_quizzes', JSON.stringify(NCS_STATE.weaknessQuizzes));
+  safeSetItem('ncs_quiz_history', JSON.stringify(NCS_STATE.quizHistory));
+  safeSetItem('ncs_generated_quizzes', JSON.stringify(NCS_STATE.generatedQuizzes));
+  safeSetItem('ncs_previous_questions', JSON.stringify(NCS_STATE.previousQuestions));
   updateDashboard();
   if (autoSyncEnabled && firebaseAuth?.currentUser && !isSyncing) {
     clearTimeout(saveState._syncTimer);
@@ -4746,6 +4878,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (getState().analysisData) {
     renderAnalysisResult(getState().analysisData);
   }
+
+  // IndexedDB에서 대용량 데이터 복원 (localStorage 초과분)
+  restoreFromIDB();
 
   const fbConfig = getFirebaseConfig();
   if (fbConfig) {
