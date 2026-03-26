@@ -599,7 +599,7 @@ body.mode-ncs .cs-only { display: none !important; }
 
 <!-- 메인 -->
 <div class="main">
-<div id="appVersion" style="position:fixed; top:8px; right:16px; z-index:9999; font-size:11px; color:var(--c-text-muted); background:var(--c-bg-card); padding:2px 10px; border-radius:12px; border:1px solid var(--c-border); opacity:0.7;">v2.9.0</div>
+<div id="appVersion" style="position:fixed; top:8px; right:16px; z-index:9999; font-size:11px; color:var(--c-text-muted); background:var(--c-bg-card); padding:2px 10px; border-radius:12px; border:1px solid var(--c-border); opacity:0.7;">v2.10.0</div>
 
   <!-- ===== 홈/대시보드 ===== -->
   <div class="page active" id="page-home">
@@ -1715,7 +1715,29 @@ function getSubTopics(subject) {
 function buildSubTopicOptions(subject) {
   const subs = getSubTopics(subject);
   let html = '<option value="">전체</option>';
-  subs.forEach(s => { html += `<option value="${s}">${s}</option>`; });
+  // MAJOR_CATEGORY_MAP이 있는 과목은 대분류별 optgroup으로 표시
+  if (MAJOR_CATEGORY_MAP[subject] && subs.length > 0) {
+    const groups = groupSubTopicsByMajor(subject);
+    const majorOrder = Object.keys(MAJOR_CATEGORY_MAP[subject]);
+    // 정의된 대분류 순서대로 표시
+    majorOrder.forEach(major => {
+      if (groups[major] && groups[major].length > 0) {
+        html += `<option value="__major__${major}" style="font-weight:bold;color:#6c5ce7;">📁 [${major}] 전체 (${groups[major].length}개)</option>`;
+        html += `<optgroup label="　${major}">`;
+        groups[major].forEach(s => { html += `<option value="${s}">　${s}</option>`; });
+        html += '</optgroup>';
+      }
+    });
+    // 기타 그룹
+    if (groups['기타'] && groups['기타'].length > 0) {
+      html += `<option value="__major__기타" style="font-weight:bold;color:#6c5ce7;">📁 [기타] 전체 (${groups['기타'].length}개)</option>`;
+      html += `<optgroup label="　기타">`;
+      groups['기타'].forEach(s => { html += `<option value="${s}">　${s}</option>`; });
+      html += '</optgroup>';
+    }
+  } else {
+    subs.forEach(s => { html += `<option value="${s}">${s}</option>`; });
+  }
   return html;
 }
 
@@ -3066,6 +3088,17 @@ async function generateConcept() {
     // "전체" 선택 시 모든 과목의 모든 세부과목을 탭으로 생성
     await generateAllSubjectsConcept();
     return;
+  }
+
+  // 대분류 선택 시 → 해당 대분류의 세부과목들만 분할 생성
+  if (subject && subTopic && subTopic.startsWith('__major__')) {
+    const majorName = subTopic.replace('__major__', '');
+    const groups = groupSubTopicsByMajor(subject);
+    const subs = groups[majorName] || [];
+    if (subs.length > 0) {
+      await generateConceptBySubTopics(subject, subs);
+      return;
+    }
   }
 
   // 특정 과목 + 전체(세부과목 미선택) → 해당 과목의 세부과목별 분할 생성
