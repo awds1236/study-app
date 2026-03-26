@@ -599,7 +599,7 @@ body.mode-ncs .cs-only { display: none !important; }
 
 <!-- 메인 -->
 <div class="main">
-<div id="appVersion" style="position:fixed; top:8px; right:16px; z-index:9999; font-size:11px; color:var(--c-text-muted); background:var(--c-bg-card); padding:2px 10px; border-radius:12px; border:1px solid var(--c-border); opacity:0.7;">v2.10.0</div>
+<div id="appVersion" style="position:fixed; top:8px; right:16px; z-index:9999; font-size:11px; color:var(--c-text-muted); background:var(--c-bg-card); padding:2px 10px; border-radius:12px; border:1px solid var(--c-border); opacity:0.7;">v2.10.1</div>
 
   <!-- ===== 홈/대시보드 ===== -->
   <div class="page active" id="page-home">
@@ -3383,9 +3383,14 @@ async function generateConceptBySubTopics(subject, subTopics) {
   const loadingText = document.getElementById('conceptLoadingText');
   loading.classList.add('show');
 
-  // 대분류로 그룹핑
-  const groups = groupSubTopicsByMajor(subject);
-  const majorCategories = Object.entries(groups);
+  // 전달받은 subTopics를 대분류별로 그룹핑 (전체가 아닌, 전달된 것만!)
+  const filteredGroups = {};
+  subTopics.forEach(st => {
+    const major = getMajorCategory(subject, st);
+    if (!filteredGroups[major]) filteredGroups[major] = [];
+    filteredGroups[major].push(st);
+  });
+  const majorCategories = Object.entries(filteredGroups);
 
   const results = [];
   try {
@@ -3400,11 +3405,12 @@ async function generateConceptBySubTopics(subject, subTopics) {
       results.push({ subTopic: `${majorName} (${relatedTopics.length}개: ${topicsList})`, content: result });
     }
 
+    const labelSuffix = majorCategories.length === 1 ? majorCategories[0][0] : '전체';
     const concept = {
       id: generateId(),
       subject: subject,
-      subTopic: '',
-      keyword: subject + ' 전체 개념 정리',
+      subTopic: majorCategories.length === 1 ? majorCategories[0][0] : '',
+      keyword: `${subject} ${labelSuffix} 개념 정리`,
       content: results.map(r => r.content).join('\n\n---\n\n'),
       subTopicContents: results,
       createdAt: new Date().toISOString(),
@@ -3415,7 +3421,7 @@ async function generateConceptBySubTopics(subject, subTopics) {
     saveState();
     renderConceptResult(concept);
     renderSavedConcepts();
-    showToast(`${subject} 전체 개념 정리 완료! (${majorCategories.length}개 대분류, ${subTopics.length}개 세부과목)`, 'success');
+    showToast(`${subject} ${labelSuffix} 개념 정리 완료! (${majorCategories.length}개 대분류, ${subTopics.length}개 세부과목)`, 'success');
   } catch (e) {
     showToast('개념 정리 실패: ' + e.message, 'error');
   } finally {
