@@ -232,6 +232,13 @@ body {
 .quiz-option.selected { border-color: var(--c-primary); background: var(--c-primary-bg); }
 .quiz-option.correct { border-color: var(--c-success); background: rgba(52,211,153,0.08); }
 .quiz-option.wrong { border-color: var(--c-danger); background: rgba(248,113,113,0.08); }
+.quiz-subtopic-multi { position: relative; }
+.quiz-subtopic-toggle { cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: none; }
+.quiz-subtopic-dropdown { position: absolute; top: 100%; left: 0; right: 0; z-index: 50; background: var(--c-bkg-card); border: 1px solid var(--c-border); border-radius: var(--c-radius); box-shadow: 0 8px 24px rgba(0,0,0,0.2); max-height: 280px; overflow-y: auto; padding: 6px 0; min-width: 200px; }
+.quiz-subtopic-dropdown label { display: flex; align-items: center; gap: 8px; padding: 7px 14px; cursor: pointer; font-size: 13px; transition: background 0.15s; }
+.quiz-subtopic-dropdown label:hover { background: var(--c-bkg-hover); }
+.quiz-subtopic-dropdown input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--c-primary); flex-shrink: 0; }
+.quiz-subtopic-dropdown .st-divider { height: 1px; background: var(--c-border); margin: 4px 8px; }
 .quiz-option .num {
   min-width: 30px; height: 30px; border-radius: var(--c-radius);
   background: var(--c-bkg-hover); display: flex; align-items: center;
@@ -863,12 +870,19 @@ body.mode-ncs .cs-only { display: none !important; }
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">과목</label>
-          <select class="select" id="quizSubject" onchange="refreshSubTopicSelector('quizSubject','quizSubTopic')">
+          <select class="select" id="quizSubject" onchange="refreshQuizSubTopicMulti()">
           </select>
         </div>
-        <div class="form-group">
+        <div class="form-group" id="quizSubTopicGroup">
           <label class="form-label">세부과목</label>
-          <select class="select" id="quizSubTopic">
+          <div class="quiz-subtopic-multi" id="quizSubTopicMulti">
+            <div class="quiz-subtopic-toggle select" onclick="toggleQuizSubTopicDropdown()" id="quizSubTopicToggle">전체</div>
+            <div class="quiz-subtopic-dropdown" id="quizSubTopicDropdown" style="display:none;">
+              <div id="quizSubTopicCheckboxes"></div>
+            </div>
+          </div>
+          <!-- 기존 호환용 hidden -->
+          <select class="select" id="quizSubTopic" style="display:none;">
             <option value="">전체</option>
           </select>
         </div>
@@ -2248,6 +2262,10 @@ function showPage(id) {
   // 답안지 관리 페이지 진입 시 렌더링
   if (id === 'answerSheet') {
     renderAnswerSheetList();
+  }
+  // 문제 풀기 페이지 진입 시 세부과목 다중선택 초기화
+  if (id === 'quiz') {
+    refreshQuizSubTopicMulti();
   }
   // 오답 노트 페이지 진입 시 렌더링
   if (id === 'wrongNotes') {
@@ -4839,9 +4857,81 @@ function renderSavedConcepts() {
 }
 
 // ==================== 문제 생성/풀기 ====================
+// ===== 문제 풀기 세부과목 다중 선택 =====
+function refreshQuizSubTopicMulti() {
+  const subject = document.getElementById('quizSubject').value;
+  const subs = subject ? getSubTopics(subject) : [];
+  const container = document.getElementById('quizSubTopicCheckboxes');
+  const group = document.getElementById('quizSubTopicGroup');
+  if (!container) return;
+
+  if (!subject || subs.length === 0) {
+    if (group) group.style.display = 'none';
+    container.innerHTML = '';
+    updateQuizSubTopicLabel();
+    return;
+  }
+  if (group) group.style.display = '';
+
+  container.innerHTML = `<label style="font-weight:600; color:var(--c-primary);"><input type="checkbox" id="quizStAll" checked onchange="toggleQuizStAll(this.checked)"> 전체 선택</label><div class="st-divider"></div>`
+    + subs.map((s, i) => `<label><input type="checkbox" class="quiz-st-cb" value="${s}" checked onchange="onQuizStChange()"> ${s}</label>`).join('');
+  updateQuizSubTopicLabel();
+}
+
+function toggleQuizSubTopicDropdown() {
+  const dd = document.getElementById('quizSubTopicDropdown');
+  dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+}
+
+function toggleQuizStAll(checked) {
+  document.querySelectorAll('.quiz-st-cb').forEach(cb => cb.checked = checked);
+  updateQuizSubTopicLabel();
+}
+
+function onQuizStChange() {
+  const cbs = document.querySelectorAll('.quiz-st-cb');
+  const allCb = document.getElementById('quizStAll');
+  const allChecked = [...cbs].every(cb => cb.checked);
+  if (allCb) allCb.checked = allChecked;
+  updateQuizSubTopicLabel();
+}
+
+function updateQuizSubTopicLabel() {
+  const toggle = document.getElementById('quizSubTopicToggle');
+  if (!toggle) return;
+  const cbs = [...document.querySelectorAll('.quiz-st-cb')];
+  if (cbs.length === 0) { toggle.textContent = '전체'; return; }
+  const checked = cbs.filter(cb => cb.checked);
+  if (checked.length === 0 || checked.length === cbs.length) {
+    toggle.textContent = '전체';
+  } else if (checked.length <= 2) {
+    toggle.textContent = checked.map(cb => cb.value).join(', ');
+  } else {
+    toggle.textContent = `${checked[0].value} 외 ${checked.length - 1}개`;
+  }
+}
+
+function getSelectedQuizSubTopics() {
+  const cbs = [...document.querySelectorAll('.quiz-st-cb')];
+  if (cbs.length === 0) return [];
+  const checked = cbs.filter(cb => cb.checked);
+  if (checked.length === 0 || checked.length === cbs.length) return []; // 전체
+  return checked.map(cb => cb.value);
+}
+
+// 드롭다운 외부 클릭 시 닫기
+document.addEventListener('click', (e) => {
+  const multi = document.getElementById('quizSubTopicMulti');
+  const dd = document.getElementById('quizSubTopicDropdown');
+  if (multi && dd && !multi.contains(e.target)) {
+    dd.style.display = 'none';
+  }
+});
+
 async function generateQuiz(weaknessTopic = null) {
   const subject = weaknessTopic ? null : document.getElementById('quizSubject').value;
-  const subTopic = weaknessTopic ? null : (document.getElementById('quizSubTopic')?.value || '');
+  const selectedSubs = weaknessTopic ? [] : getSelectedQuizSubTopics();
+  const subTopic = selectedSubs.length > 0 ? selectedSubs.join(', ') : '';
   const count = parseInt(document.getElementById('quizCount').value);
   const difficulty = document.getElementById('quizDifficulty').value;
   const randomness = parseInt(document.getElementById('quizRandomness').value);
@@ -4867,7 +4957,11 @@ async function generateQuiz(weaknessTopic = null) {
     : `난이도: ${difficulty}`;
 
   try {
-    const subTopicInstr = subTopic ? `\n세부 분야: ${subTopic}\n이 세부 분야에 집중하여 관련 문제만 출제하세요.` : '';
+    const subTopicInstr = subTopic
+      ? (selectedSubs.length > 1
+        ? `\n세부 분야: ${subTopic}\n위 ${selectedSubs.length}개 분야에서 골고루 문제를 출제하세요. 각 분야에서 최소 1문제 이상 출제하세요.`
+        : `\n세부 분야: ${subTopic}\n이 세부 분야에 집중하여 관련 문제만 출제하세요.`)
+      : '';
 
     // "전체" 선택 시 모든 과목/세부과목 정보 전달
     const allSubjectsInfo = !subject ? getState().subjects.map(s => {
