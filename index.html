@@ -3033,7 +3033,7 @@ function startExamPractice() {
           <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:4px;">
             <span class="tag tag-info" style="font-size:11px;">${q.subject || '기타'}</span>
             <span class="tag" style="font-size:11px; background:#f0f0f0; color:#666;">${q.year || '?'}년 ${q.number ? q.number + '번' : ''}</span>
-            ${q.topic ? `<span class="tag" style="font-size:11px; background:#e8f5e9; color:#2e7d32;">${q.topic}</span>` : ''}
+            ${q.topic ? `<span class="tag ep-topic-tag" style="font-size:11px; background:#e8f5e9; color:#2e7d32; display:none;">${q.topic}</span>` : ''}
           </div>
         </div>
       </div>
@@ -3195,6 +3195,9 @@ function submitExamPractice() {
 
   // 오답 노트에 자동 저장
   addToWrongNotes(epCurrentQuiz, epAnswers, 'exam');
+
+  // 채점 후 주제 태그 표시
+  document.querySelectorAll('.ep-topic-tag').forEach(el => el.style.display = '');
 }
 
 function saveExamPracticeWrongs() {
@@ -5054,7 +5057,7 @@ function renderQuiz(data) {
   const container = document.getElementById('quizQuestions');
   container.innerHTML = data.questions.map((q, i) => `
     <div class="quiz-question" id="question-${i}">
-      <div class="quiz-number">문제 ${i + 1} ${q.subject ? `<span class="tag tag-info" style="margin-left:8px;">${q.subject}</span>` : ''}<span class="tag tag-${q.difficulty === '어려움' ? 'danger' : q.difficulty === '보통' ? 'warning' : 'success'}" style="margin-left:4px;">${q.difficulty}</span> <span style="color:var(--c-text-light); font-weight:400;">${q.topic || ''}</span></div>
+      <div class="quiz-number">문제 ${i + 1} ${q.subject ? `<span class="tag tag-info" style="margin-left:8px;">${q.subject}</span>` : ''}<span class="tag tag-${q.difficulty === '어려움' ? 'danger' : q.difficulty === '보통' ? 'warning' : 'success'}" style="margin-left:4px;">${q.difficulty}</span></div>
       <div class="quiz-text">${q.question}</div>
       <div class="quiz-options">
         ${q.options.map((opt, j) => `
