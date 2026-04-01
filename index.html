@@ -4437,34 +4437,45 @@ async function generateConceptBySubTopics(subject, subTopics) {
   const loadingText = document.getElementById('conceptLoadingText');
   loading.classList.add('show');
 
-  // 전달받은 subTopics를 대분류별로 그룹핑 (전체가 아닌, 전달된 것만!)
-  const filteredGroups = {};
-  subTopics.forEach(st => {
-    const major = getMajorCategory(subject, st);
-    if (!filteredGroups[major]) filteredGroups[major] = [];
-    filteredGroups[major].push(st);
-  });
-  const majorCategories = Object.entries(filteredGroups);
+  // 일반과목(국어/영어/한국사)은 세부과목별 개별 탭으로 생성
+  const isGeneralSubject = currentMode === 'general' && GENERAL_DEFAULT_SUBTOPICS[subject];
 
   const results = [];
   try {
-    for (let i = 0; i < majorCategories.length; i++) {
-      const [majorName, relatedTopics] = majorCategories[i];
-      loadingText.textContent = `[${i + 1}/${majorCategories.length}] "${majorName}" (${relatedTopics.length}개 세부과목) 개념 정리 중...`;
+    if (isGeneralSubject) {
+      // 각 세부과목마다 개별 API 호출 → 개별 탭
+      for (let i = 0; i < subTopics.length; i++) {
+        const st = subTopics[i];
+        loadingText.textContent = `[${i + 1}/${subTopics.length}] "${st}" 개념 정리 중...`;
+        const prompt = buildConceptPrompt(subject, st, '', `${subject} - ${st}`);
+        const result = await callGemini(prompt);
+        results.push({ subTopic: st, content: result });
+      }
+    } else {
+      // 전산학 등: 대분류별로 그룹핑하여 생성
+      const filteredGroups = {};
+      subTopics.forEach(st => {
+        const major = getMajorCategory(subject, st);
+        if (!filteredGroups[major]) filteredGroups[major] = [];
+        filteredGroups[major].push(st);
+      });
+      const majorCategories = Object.entries(filteredGroups);
 
-      // 대분류에 속한 세부과목들을 모두 포함하여 개념 정리
-      const topicsList = relatedTopics.join(', ');
-      const prompt = buildConceptPrompt(subject, '', topicsList, `${subject} - ${majorName}`);
-      const result = await callGemini(prompt);
-      results.push({ subTopic: `${majorName} (${relatedTopics.length}개: ${topicsList})`, content: result });
+      for (let i = 0; i < majorCategories.length; i++) {
+        const [majorName, relatedTopics] = majorCategories[i];
+        loadingText.textContent = `[${i + 1}/${majorCategories.length}] "${majorName}" (${relatedTopics.length}개 세부과목) 개념 정리 중...`;
+        const topicsList = relatedTopics.join(', ');
+        const prompt = buildConceptPrompt(subject, '', topicsList, `${subject} - ${majorName}`);
+        const result = await callGemini(prompt);
+        results.push({ subTopic: `${majorName} (${relatedTopics.length}개: ${topicsList})`, content: result });
+      }
     }
 
-    const labelSuffix = majorCategories.length === 1 ? majorCategories[0][0] : '전체';
     const concept = {
       id: generateId(),
       subject: subject,
-      subTopic: majorCategories.length === 1 ? majorCategories[0][0] : '',
-      keyword: `${subject} ${labelSuffix} 개념 정리`,
+      subTopic: '',
+      keyword: `${subject} 전체 개념 정리`,
       content: results.map(r => r.content).join('\n\n---\n\n'),
       subTopicContents: results,
       createdAt: new Date().toISOString(),
@@ -4475,7 +4486,7 @@ async function generateConceptBySubTopics(subject, subTopics) {
     saveState();
     renderConceptResult(concept);
     renderSavedConcepts();
-    showToast(`${subject} ${labelSuffix} 개념 정리 완료! (${majorCategories.length}개 대분류, ${subTopics.length}개 세부과목)`, 'success');
+    showToast(`${subject} 전체 개념 정리 완료! (${results.length}개 탭)`, 'success');
   } catch (e) {
     showToast('개념 정리 실패: ' + e.message, 'error');
   } finally {
