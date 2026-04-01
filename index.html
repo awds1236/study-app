@@ -581,6 +581,10 @@ body.mode-ncs .cs-only { display: none !important; }
     <div class="nav-item" onclick="showPage('quiz')">
       <span class="icon">✏️</span><span>문제 풀기</span>
     </div>
+    <div class="nav-item" onclick="showPage('wrongNotes')">
+      <span class="icon">📕</span><span>오답 노트</span>
+      <span class="nav-badge" id="wrongNotesBadge" style="display:none">0</span>
+    </div>
     <div class="nav-item" onclick="showPage('weakness')">
       <span class="icon">🎯</span><span>취약점 관리</span>
       <span class="nav-badge" id="weaknessBadge" style="display:none">0</span>
@@ -940,6 +944,37 @@ body.mode-ncs .cs-only { display: none !important; }
         <button class="btn btn-warning" onclick="generateQuizFromWrongAnswers()">📝 오답 기반 문제 생성</button>
       </div>
       <div id="quizExplanations" style="margin-top:20px;"></div>
+    </div>
+  </div>
+
+  <!-- ===== 오답 노트 ===== -->
+  <div class="page" id="page-wrongNotes">
+    <div class="section-header">
+      <h2>📕 오답 노트</h2>
+      <p class="section-desc">틀린 문제를 모아서 다시 풀고, 정답과 해설을 확인합니다.</p>
+    </div>
+    <div style="display:flex; gap:12px; margin-bottom:16px; flex-wrap:wrap; align-items:center;">
+      <select class="select" id="wnSubjectFilter" onchange="renderWrongNotes()" style="max-width:200px;">
+        <option value="">전체</option>
+      </select>
+      <select class="select" id="wnSourceFilter" onchange="renderWrongNotes()" style="max-width:160px;">
+        <option value="">전체 출처</option>
+        <option value="exam">기출문제</option>
+        <option value="quiz">생성 문제</option>
+      </select>
+      <span id="wnCount" style="font-size:13px; color:var(--c-text-muted);"></span>
+      <div style="margin-left:auto; display:flex; gap:8px;">
+        <button class="btn btn-primary" onclick="startWrongNotesPractice()">📝 오답 다시 풀기</button>
+        <button class="btn btn-danger btn-sm" onclick="clearAllWrongNotes()">🗑️ 전체 삭제</button>
+      </div>
+    </div>
+    <div id="wnList"></div>
+    <div id="wnPracticeArea" style="display:none;">
+      <div id="wnQuestions"></div>
+      <div style="text-align:center; margin-top:24px;">
+        <button class="btn btn-primary btn-lg" onclick="submitWrongNotesPractice()" id="wnSubmitBtn">📊 채점하기</button>
+      </div>
+      <div id="wnResult" style="display:none; margin-top:24px;"></div>
     </div>
   </div>
 
@@ -1420,6 +1455,10 @@ async function syncToCloud(silent = false) {
       general_previousQuestions: GENERAL_STATE.previousQuestions,
       general_uploadCount: localStorage.getItem('general_upload_count') || '0',
       general_answerSheets: GENERAL_STATE.answerSheets,
+      wrongNotes: APP_STATE.wrongNotes || [],
+      cs_wrongNotes: CS_STATE.wrongNotes || [],
+      ncs_wrongNotes: NCS_STATE.wrongNotes || [],
+      general_wrongNotes: GENERAL_STATE.wrongNotes || [],
       updatedAt: Date.now(),
       version: 2 // 분할 저장 버전 표시
     };
@@ -1520,6 +1559,10 @@ async function syncFromCloud(silent = false) {
     if (data.general_previousQuestions) GENERAL_STATE.previousQuestions = data.general_previousQuestions;
     if (data.general_uploadCount) localStorage.setItem('general_upload_count', data.general_uploadCount);
     if (data.general_answerSheets) GENERAL_STATE.answerSheets = data.general_answerSheets;
+    if (data.wrongNotes) APP_STATE.wrongNotes = data.wrongNotes;
+    if (data.cs_wrongNotes) CS_STATE.wrongNotes = data.cs_wrongNotes;
+    if (data.ncs_wrongNotes) NCS_STATE.wrongNotes = data.ncs_wrongNotes;
+    if (data.general_wrongNotes) GENERAL_STATE.wrongNotes = data.general_wrongNotes;
 
     // 대용량 데이터를 subcollection에서 복원 (v2 형식)
     if (data.version >= 2) {
@@ -1719,7 +1762,8 @@ const APP_STATE = {
   generatedQuizzes: safeParseArray('generated_quizzes'),
   currentQuiz: null,
   currentAnswers: {},
-  previousQuestions: safeParseArray('previous_questions')
+  previousQuestions: safeParseArray('previous_questions'),
+  wrongNotes: safeParseArray('wrong_notes')
 };
 
 // ==================== 전산학 학습 모드 별도 데이터 ====================
@@ -1742,7 +1786,8 @@ const CS_STATE = {
   generatedQuizzes: safeParseArray('cs_generated_quizzes'),
   currentQuiz: null,
   currentAnswers: {},
-  previousQuestions: safeParseArray('cs_previous_questions')
+  previousQuestions: safeParseArray('cs_previous_questions'),
+  wrongNotes: safeParseArray('cs_wrong_notes')
 };
 
 // ==================== NCS 직업기초능력 모드 별도 데이터 ====================
@@ -1760,7 +1805,8 @@ const NCS_STATE = {
   generatedQuizzes: safeParseArray('ncs_generated_quizzes'),
   currentQuiz: null,
   currentAnswers: {},
-  previousQuestions: safeParseArray('ncs_previous_questions')
+  previousQuestions: safeParseArray('ncs_previous_questions'),
+  wrongNotes: safeParseArray('ncs_wrong_notes')
 };
 
 // ==================== 공무원 일반과목 모드 별도 데이터 ====================
@@ -1787,7 +1833,8 @@ const GENERAL_STATE = {
   currentQuiz: null,
   currentAnswers: {},
   previousQuestions: safeParseArray('general_previous_questions'),
-  answerSheets: safeParseArray('general_answer_sheets')
+  answerSheets: safeParseArray('general_answer_sheets'),
+  wrongNotes: safeParseArray('general_wrong_notes')
 };
 
 let currentMode = localStorage.getItem('study_mode') || 'exam';
@@ -2040,6 +2087,7 @@ function saveState() {
   safeSetItem('quiz_history', JSON.stringify(APP_STATE.quizHistory));
   safeSetItem('generated_quizzes', JSON.stringify(APP_STATE.generatedQuizzes));
   safeSetItem('previous_questions', JSON.stringify(APP_STATE.previousQuestions));
+  safeSetItem('wrong_notes', JSON.stringify(APP_STATE.wrongNotes));
   // 전산학 학습 모드 데이터 저장
   safeSetItem('cs_subjects', JSON.stringify(CS_STATE.subjects));
   safeSetItem('cs_sub_topics', JSON.stringify(CS_STATE.subTopics));
@@ -2050,6 +2098,7 @@ function saveState() {
   safeSetItem('cs_quiz_history', JSON.stringify(CS_STATE.quizHistory));
   safeSetItem('cs_generated_quizzes', JSON.stringify(CS_STATE.generatedQuizzes));
   safeSetItem('cs_previous_questions', JSON.stringify(CS_STATE.previousQuestions));
+  safeSetItem('cs_wrong_notes', JSON.stringify(CS_STATE.wrongNotes));
   // NCS 직업기초능력 모드 데이터 저장
   safeSetItem('ncs_subjects', JSON.stringify(NCS_STATE.subjects));
   safeSetItem('ncs_sub_topics', JSON.stringify(NCS_STATE.subTopics));
@@ -2062,6 +2111,7 @@ function saveState() {
   safeSetItem('ncs_quiz_history', JSON.stringify(NCS_STATE.quizHistory));
   safeSetItem('ncs_generated_quizzes', JSON.stringify(NCS_STATE.generatedQuizzes));
   safeSetItem('ncs_previous_questions', JSON.stringify(NCS_STATE.previousQuestions));
+  safeSetItem('ncs_wrong_notes', JSON.stringify(NCS_STATE.wrongNotes));
   // 공무원 일반과목 모드 데이터 저장
   safeSetItem('general_subjects', JSON.stringify(GENERAL_STATE.subjects));
   safeSetItem('general_sub_topics', JSON.stringify(GENERAL_STATE.subTopics));
@@ -2075,6 +2125,7 @@ function saveState() {
   safeSetItem('general_generated_quizzes', JSON.stringify(GENERAL_STATE.generatedQuizzes));
   safeSetItem('general_previous_questions', JSON.stringify(GENERAL_STATE.previousQuestions));
   safeSetItem('general_answer_sheets', JSON.stringify(GENERAL_STATE.answerSheets));
+  safeSetItem('general_wrong_notes', JSON.stringify(GENERAL_STATE.wrongNotes));
   updateDashboard();
   if (autoSyncEnabled && firebaseAuth?.currentUser && !isSyncing) {
     clearTimeout(saveState._syncTimer);
@@ -2198,11 +2249,15 @@ function showPage(id) {
   if (id === 'answerSheet') {
     renderAnswerSheetList();
   }
+  // 오답 노트 페이지 진입 시 렌더링
+  if (id === 'wrongNotes') {
+    renderWrongNotes();
+  }
 
   // 보이는 nav-item 중에서 active 설정
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const allNavItems = document.querySelectorAll('.nav-item');
-  const pages = ['home', 'upload', 'examPractice', 'answerSheet', 'concepts', 'quiz', 'weakness', 'collection', 'settings'];
+  const pages = ['home', 'upload', 'examPractice', 'answerSheet', 'concepts', 'quiz', 'wrongNotes', 'weakness', 'collection', 'settings'];
   const idx = pages.indexOf(id);
   if (idx >= 0 && allNavItems[idx]) allNavItems[idx].classList.add('active');
   window.scrollTo(0, 0);
@@ -3137,6 +3192,9 @@ function submitExamPractice() {
 
   // wrongTopics 임시 저장
   getState()._epWrongTopics = wrongTopics;
+
+  // 오답 노트에 자동 저장
+  addToWrongNotes(epCurrentQuiz, epAnswers, 'exam');
 }
 
 function saveExamPracticeWrongs() {
@@ -3225,6 +3283,359 @@ JSON으로 반환: {"explanations":[{"n":문제번호,"e":"해설 내용"}]}
       if (el) el.innerHTML = '<span style="color:var(--c-text-muted);">해설 생성 실패. 다음에 다시 시도해주세요.</span>';
     });
   }
+}
+
+// ==================== 오답 노트 ====================
+let wnCurrentQuiz = null;
+let wnAnswers = {};
+
+function addToWrongNotes(questions, userAnswers, source) {
+  if (!getState().wrongNotes) getState().wrongNotes = [];
+  const notes = getState().wrongNotes;
+  let added = 0;
+
+  questions.forEach((q, i) => {
+    const userAnswer = userAnswers[i];
+    const correctAnswer = q.answer;
+    if (userAnswer === undefined || userAnswer === correctAnswer || correctAnswer === -1 || correctAnswer === undefined) return;
+
+    // 중복 체크 (같은 과목/연도/문제번호 또는 같은 문제 텍스트)
+    const isDup = notes.some(n =>
+      (n.year && n.year == q.year && n.number == q.number && n.subject === q.subject) ||
+      (n.question === q.question && n.subject === q.subject)
+    );
+    if (isDup) return;
+
+    notes.push({
+      id: generateId(),
+      source: source, // 'exam' or 'quiz'
+      subject: q.subject || '기타',
+      topic: q.topic || '',
+      year: q.year || '',
+      number: q.number || 0,
+      question: q.question,
+      options: q.options || [],
+      answer: correctAnswer,
+      explanation: q.explanation || '',
+      userAnswer: userAnswer,
+      date: new Date().toISOString(),
+      solved: false // 다시 풀어서 맞추면 true
+    });
+    added++;
+  });
+
+  if (added > 0) {
+    saveState();
+    updateWrongNotesBadge();
+  }
+}
+
+function updateWrongNotesBadge() {
+  const badge = document.getElementById('wrongNotesBadge');
+  if (!badge) return;
+  const unsolved = (getState().wrongNotes || []).filter(n => !n.solved).length;
+  badge.textContent = unsolved;
+  badge.style.display = unsolved > 0 ? '' : 'none';
+}
+
+function renderWrongNotes() {
+  const notes = getState().wrongNotes || [];
+  const subjectFilter = document.getElementById('wnSubjectFilter')?.value || '';
+  const sourceFilter = document.getElementById('wnSourceFilter')?.value || '';
+
+  // 과목 필터 옵션 업데이트
+  const subjects = [...new Set(notes.map(n => n.subject).filter(Boolean))];
+  const subjectSel = document.getElementById('wnSubjectFilter');
+  if (subjectSel) {
+    const curVal = subjectSel.value;
+    subjectSel.innerHTML = '<option value="">전체</option>' + subjects.map(s =>
+      `<option value="${s}" ${s === curVal ? 'selected' : ''}>${s}</option>`
+    ).join('');
+  }
+
+  let filtered = notes;
+  if (subjectFilter) filtered = filtered.filter(n => n.subject === subjectFilter);
+  if (sourceFilter) filtered = filtered.filter(n => n.source === sourceFilter);
+
+  const unsolved = filtered.filter(n => !n.solved);
+  const solved = filtered.filter(n => n.solved);
+
+  document.getElementById('wnCount').textContent = `미풀이 ${unsolved.length}개 / 완료 ${solved.length}개 (총 ${filtered.length}개)`;
+
+  const container = document.getElementById('wnList');
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">📕</div><p>저장된 오답이 없습니다.<br>기출문제나 문제 풀기에서 채점하면 오답이 자동 저장됩니다.</p></div>';
+    return;
+  }
+
+  // 과목별 그룹
+  const grouped = {};
+  filtered.forEach(n => {
+    const key = n.subject || '기타';
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(n);
+  });
+
+  let html = '';
+  Object.entries(grouped).forEach(([subject, items]) => {
+    const unsolvedCount = items.filter(n => !n.solved).length;
+    html += `<div class="card" style="margin-bottom:16px;">
+      <div class="card-title" style="display:flex; justify-content:space-between; align-items:center;">
+        <span>${subject} <span class="tag tag-danger" style="font-size:11px;">${unsolvedCount}개 미풀이</span></span>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:8px;">`;
+
+    items.forEach(n => {
+      const statusColor = n.solved ? 'var(--c-success)' : 'var(--c-danger)';
+      const statusIcon = n.solved ? '✅' : '❌';
+      const sourceLabel = n.source === 'exam' ? '기출' : '생성';
+      html += `<div style="background:var(--c-bkg-body); border:1px solid var(--c-border); border-radius:var(--c-radius); padding:12px; border-left:3px solid ${statusColor};">
+        <div style="display:flex; justify-content:space-between; align-items:start; gap:8px;">
+          <div style="flex:1;">
+            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:4px;">
+              <span style="font-size:12px;">${statusIcon}</span>
+              <span class="tag" style="font-size:11px; background:#f0f0f0; color:#666;">${sourceLabel}</span>
+              ${n.year ? `<span class="tag" style="font-size:11px; background:#e8f5e9; color:#2e7d32;">${n.year}년 ${n.number ? n.number + '번' : ''}</span>` : ''}
+              ${n.topic ? `<span class="tag tag-info" style="font-size:11px;">${n.topic}</span>` : ''}
+            </div>
+            <div style="font-size:13px; line-height:1.6; white-space:pre-wrap; max-height:80px; overflow:hidden;">${n.question}</div>
+          </div>
+          <button class="btn btn-sm btn-danger" onclick="deleteWrongNote('${n.id}')" style="flex-shrink:0;">삭제</button>
+        </div>
+        ${n.explanation ? `<div style="margin-top:8px; padding:8px; background:var(--c-primary-bg); border-radius:var(--c-radius); font-size:12px; color:var(--c-text-muted); line-height:1.6;"><strong>해설:</strong> ${n.explanation}</div>` : ''}
+      </div>`;
+    });
+    html += '</div></div>';
+  });
+
+  container.innerHTML = html;
+}
+
+function deleteWrongNote(id) {
+  if (!confirm('이 오답을 삭제하시겠습니까?')) return;
+  getState().wrongNotes = (getState().wrongNotes || []).filter(n => n.id !== id);
+  saveState();
+  renderWrongNotes();
+  updateWrongNotesBadge();
+}
+
+function clearAllWrongNotes() {
+  const notes = getState().wrongNotes || [];
+  if (notes.length === 0) { showToast('삭제할 오답이 없습니다.', 'info'); return; }
+  if (!confirm(`오답 노트 ${notes.length}개를 모두 삭제하시겠습니까?`)) return;
+  getState().wrongNotes = [];
+  saveState();
+  renderWrongNotes();
+  updateWrongNotesBadge();
+  showToast('오답 노트가 초기화되었습니다.', 'info');
+}
+
+function startWrongNotesPractice() {
+  const notes = getState().wrongNotes || [];
+  const subjectFilter = document.getElementById('wnSubjectFilter')?.value || '';
+  const sourceFilter = document.getElementById('wnSourceFilter')?.value || '';
+
+  let filtered = notes.filter(n => !n.solved);
+  if (subjectFilter) filtered = filtered.filter(n => n.subject === subjectFilter);
+  if (sourceFilter) filtered = filtered.filter(n => n.source === sourceFilter);
+
+  if (filtered.length === 0) {
+    showToast('풀 수 있는 오답이 없습니다.', 'info');
+    return;
+  }
+
+  // 섞기
+  for (let i = filtered.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [filtered[i], filtered[j]] = [filtered[j], filtered[i]];
+  }
+
+  wnCurrentQuiz = filtered;
+  wnAnswers = {};
+
+  document.getElementById('wnList').style.display = 'none';
+  const area = document.getElementById('wnPracticeArea');
+  area.style.display = 'block';
+  document.getElementById('wnResult').style.display = 'none';
+  document.getElementById('wnSubmitBtn').style.display = 'inline-flex';
+
+  const container = document.getElementById('wnQuestions');
+  container.innerHTML = filtered.map((n, i) => `
+    <div class="quiz-question" id="wn-q-${i}" style="margin-bottom:20px;">
+      <div class="quiz-question-header">
+        <span class="quiz-number">${i + 1}</span>
+        <div style="flex:1;">
+          <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:4px;">
+            <span class="tag tag-info" style="font-size:11px;">${n.subject || '기타'}</span>
+            ${n.year ? `<span class="tag" style="font-size:11px; background:#f0f0f0; color:#666;">${n.year}년 ${n.number ? n.number + '번' : ''}</span>` : ''}
+            ${n.topic ? `<span class="tag" style="font-size:11px; background:#e8f5e9; color:#2e7d32;">${n.topic}</span>` : ''}
+          </div>
+        </div>
+      </div>
+      <div class="quiz-question-text" style="white-space:pre-wrap; line-height:1.8;">${n.question}</div>
+      <div class="quiz-options">
+        ${(n.options || []).map((opt, oi) => `
+          <div class="quiz-option" id="wn-opt-${i}-${oi}" onclick="selectWnAnswer(${i}, ${oi})">
+            <span class="option-number">${oi + 1}</span>
+            <span class="option-text">${opt}</span>
+          </div>
+        `).join('')}
+      </div>
+      <div class="quiz-explanation" id="wn-expl-${i}">${n.explanation || ''}</div>
+    </div>
+  `).join('');
+
+  area.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function selectWnAnswer(qi, oi) {
+  if (wnCurrentQuiz[qi]._submitted) return;
+  const prev = wnAnswers[qi];
+  if (prev !== undefined) {
+    document.getElementById(`wn-opt-${qi}-${prev}`).classList.remove('selected');
+  }
+  wnAnswers[qi] = oi;
+  document.getElementById(`wn-opt-${qi}-${oi}`).classList.add('selected');
+}
+
+function submitWrongNotesPractice() {
+  if (!wnCurrentQuiz || wnCurrentQuiz.length === 0) return;
+
+  const answered = Object.keys(wnAnswers).length;
+  if (answered === 0) {
+    showToast('하나 이상의 문제에 답을 선택해주세요.', 'error');
+    return;
+  }
+  if (answered < wnCurrentQuiz.length) {
+    if (!confirm(`${wnCurrentQuiz.length}문제 중 ${answered}문제만 답을 선택했습니다. 채점하시겠습니까?`)) return;
+  }
+
+  let correct = 0;
+  let wrong = 0;
+  const stillWrong = [];
+
+  wnCurrentQuiz.forEach((n, i) => {
+    n._submitted = true;
+    const userAnswer = wnAnswers[i];
+    const correctAnswer = n.answer;
+    const isCorrect = userAnswer === correctAnswer;
+
+    if (correctAnswer !== undefined && correctAnswer !== -1) {
+      document.getElementById(`wn-opt-${i}-${correctAnswer}`)?.classList.add('correct');
+    }
+
+    if (isCorrect) {
+      correct++;
+      // 맞추면 solved 표시
+      const note = getState().wrongNotes.find(x => x.id === n.id);
+      if (note) note.solved = true;
+    } else {
+      wrong++;
+      if (userAnswer !== undefined) {
+        document.getElementById(`wn-opt-${i}-${userAnswer}`)?.classList.add('wrong');
+      }
+      stillWrong.push(n);
+    }
+
+    document.getElementById(`wn-expl-${i}`).classList.add('show');
+  });
+
+  const total = wnCurrentQuiz.length;
+  const score = Math.round(correct / total * 100);
+
+  document.getElementById('wnResult').style.display = 'block';
+  document.getElementById('wnResult').innerHTML = `
+    <div class="card" style="text-align:center; padding:24px;">
+      <h3 style="color:${score >= 80 ? 'var(--c-success)' : score >= 60 ? 'var(--c-warning)' : 'var(--c-danger)'}; margin-bottom:16px;">
+        ${score >= 80 ? '🎉' : score >= 60 ? '💪' : '📚'} ${score}점
+      </h3>
+      <div style="display:flex; justify-content:center; gap:24px; margin-bottom:16px; flex-wrap:wrap;">
+        <div><span style="color:var(--c-success); font-weight:600; font-size:20px;">${correct}</span><br><span style="font-size:13px; color:var(--c-text-muted);">정답</span></div>
+        <div><span style="color:var(--c-danger); font-weight:600; font-size:20px;">${wrong}</span><br><span style="font-size:13px; color:var(--c-text-muted);">오답</span></div>
+      </div>
+      ${correct > 0 ? `<div style="color:var(--c-success); margin-bottom:8px;">${correct}개 문제가 오답 노트에서 완료 처리되었습니다.</div>` : ''}
+      ${stillWrong.length > 0 ? `<div style="color:var(--c-danger);">${stillWrong.length}개 문제는 아직 미완료 상태입니다.</div>` : '<div style="color:var(--c-success);">모든 오답을 정복했습니다! 🎉</div>'}
+      <button class="btn btn-secondary" onclick="closeWrongNotesPractice()" style="margin-top:16px;">목록으로 돌아가기</button>
+    </div>
+  `;
+
+  document.getElementById('wnSubmitBtn').style.display = 'none';
+
+  // 해설이 없는 틀린 문제에 대해 AI 해설 생성
+  const needExplanation = [];
+  wnCurrentQuiz.forEach((n, i) => {
+    const userAnswer = wnAnswers[i];
+    const isCorrect = userAnswer === n.answer;
+    if (!isCorrect && !n.explanation) {
+      needExplanation.push({ index: i, q: n, noteId: n.id });
+    }
+  });
+
+  if (needExplanation.length > 0) {
+    generateWrongNotesExplanations(needExplanation);
+  }
+
+  saveState();
+  updateWrongNotesBadge();
+}
+
+async function generateWrongNotesExplanations(items) {
+  items.forEach(({ index }) => {
+    const el = document.getElementById(`wn-expl-${index}`);
+    if (el) el.innerHTML = '<span style="color:var(--c-text-muted);">⏳ 해설 생성 중...</span>';
+  });
+
+  try {
+    const questionsForAI = items.map(({ q }) => ({
+      n: q.number || 0,
+      q: q.question,
+      o: q.options,
+      a: q.answer
+    }));
+
+    const prompt = `다음 시험 문제들의 정답 해설을 작성해주세요.
+
+${JSON.stringify(questionsForAI)}
+
+각 문제에 대해 정답인 이유와 오답인 선택지가 왜 틀린지 설명해주세요.
+JSON으로 반환: {"explanations":[{"n":문제번호,"e":"해설 내용"}]}
+- 각 해설은 2~4문장으로 간결하게 작성
+- 핵심 개념을 명확히 설명
+- JSON만 반환`;
+
+    const result = await callGemini(prompt);
+    const parsed = JSON.parse(result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
+
+    if (parsed.explanations) {
+      parsed.explanations.forEach(ex => {
+        const item = items.find(({ q }) => (q.number || 0) === ex.n) || items[parsed.explanations.indexOf(ex)];
+        if (item) {
+          item.q.explanation = ex.e;
+          const el = document.getElementById(`wn-expl-${item.index}`);
+          if (el) el.innerHTML = ex.e;
+
+          // wrongNotes에도 해설 저장
+          const note = getState().wrongNotes.find(n => n.id === item.noteId);
+          if (note) note.explanation = ex.e;
+        }
+      });
+      saveState();
+    }
+  } catch (e) {
+    console.warn('오답 노트 해설 생성 실패:', e);
+    items.forEach(({ index }) => {
+      const el = document.getElementById(`wn-expl-${index}`);
+      if (el) el.innerHTML = '<span style="color:var(--c-text-muted);">해설 생성 실패.</span>';
+    });
+  }
+}
+
+function closeWrongNotesPractice() {
+  document.getElementById('wnPracticeArea').style.display = 'none';
+  document.getElementById('wnList').style.display = '';
+  wnCurrentQuiz = null;
+  wnAnswers = {};
+  renderWrongNotes();
 }
 
 // ==================== 답안지 관리 ====================
@@ -4649,6 +5060,19 @@ function submitQuiz() {
 
   getState()._currentWrongTopics = wrongTopics;
 
+  // 오답 노트에 자동 저장
+  const quizQs = quiz.questions.map((q, i) => ({
+    ...q,
+    number: i + 1,
+    subject: q.subject || quiz.subject,
+    topic: q.topic || '',
+    year: '',
+    options: q.options
+  }));
+  const quizAnswers = {};
+  Object.entries(getState().currentAnswers).forEach(([k, v]) => { quizAnswers[k] = v; });
+  addToWrongNotes(quizQs, quizAnswers, 'quiz');
+
   saveState();
   updateDashboard();
 }
@@ -5909,7 +6333,8 @@ function exportData() {
     generatedQuizzes: state.generatedQuizzes,
     analysisData: state.analysisData || null,
     previousQuestions: state.previousQuestions,
-    answerSheets: state.answerSheets || []
+    answerSheets: state.answerSheets || [],
+    wrongNotes: state.wrongNotes || []
   };
   const modeLabels = { exam: '기출분석', cs: '전산학', ncs: 'NCS', general: '일반과목' };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -5937,6 +6362,7 @@ function importData(file) {
       if (data.generatedQuizzes) state.generatedQuizzes = data.generatedQuizzes;
       if (data.analysisData) state.analysisData = data.analysisData;
       if (data.previousQuestions) state.previousQuestions = data.previousQuestions;
+      if (data.wrongNotes) state.wrongNotes = data.wrongNotes;
       saveState();
       refreshAllSubjectSelectors();
       renderSubjectManager();
@@ -5969,6 +6395,7 @@ function clearModeData(mode) {
   if (state.extractedQuestions !== undefined) state.extractedQuestions = [];
   if (state.analysisData !== undefined) state.analysisData = null;
   if (state.answerSheets !== undefined) state.answerSheets = [];
+  if (state.wrongNotes !== undefined) state.wrongNotes = [];
   if (mode === 'exam') localStorage.setItem('upload_count', '0');
   if (mode === 'ncs') localStorage.setItem('ncs_upload_count', '0');
   if (mode === 'general') localStorage.setItem('general_upload_count', '0');
@@ -5999,6 +6426,7 @@ function clearAllModesData() {
     if (state.extractedQuestions !== undefined) state.extractedQuestions = [];
     if (state.analysisData !== undefined) state.analysisData = null;
     if (state.answerSheets !== undefined) state.answerSheets = [];
+    if (state.wrongNotes !== undefined) state.wrongNotes = [];
   });
   localStorage.setItem('upload_count', '0');
   localStorage.setItem('ncs_upload_count', '0');
