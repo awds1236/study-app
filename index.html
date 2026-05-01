@@ -4939,13 +4939,30 @@ function openTabbedConceptViewPage(title, subject, subTopicContents) {
     return match[1].split(',').map(function(t) { return t.trim(); }).filter(Boolean);
   }
 
+  function normalizeTopicForOrder(value) {
+    return String(value || '').replace(/[\s\-_/·ㆍ:：()[\]{}<>"'`~!@#$%^&*+=|\\;,.?，。]/g, '').toLowerCase();
+  }
+
+  function sortTopicsByContentOrder(topics, content) {
+    var normalizedContent = normalizeTopicForOrder(content);
+    return topics.map(function(topic, idx) {
+      var pos = normalizedContent.indexOf(normalizeTopicForOrder(topic));
+      return { topic: topic, idx: idx, pos: pos < 0 ? Number.MAX_SAFE_INTEGER : pos };
+    }).sort(function(a, b) {
+      if (a.pos !== b.pos) return a.pos - b.pos;
+      return a.idx - b.idx;
+    }).map(function(item) {
+      return item.topic;
+    });
+  }
+
   function buildJumpNav(item, tabIdx) {
-    var topics = getJumpTopics(item);
+    var topics = sortTopicsByContentOrder(getJumpTopics(item), item.content);
     if (topics.length === 0) return '';
     return '<div class="subtopic-jump-nav"><div class="subtopic-jump-title">소주제 바로가기</div>'
       + '<div class="subtopic-jump-buttons">'
       + topics.map(function(topic) {
-        return '<button type="button" onclick="scrollToSubTopic(' + tabIdx + ', ' + JSON.stringify(topic) + ')">' + escapeHtml(topic) + '</button>';
+        return '<button type="button" data-tab-idx="' + tabIdx + '" data-topic="' + escapeHtml(topic) + '">' + escapeHtml(topic) + '</button>';
       }).join('')
       + '</div></div>';
   }
@@ -5013,12 +5030,21 @@ function openTabbedConceptViewPage(title, subject, subTopicContents) {
     + '  var tab = document.getElementById("ctab-" + tabIdx);'
     + '  if (!tab) return;'
     + '  var targetText = normalizeTopicText(label);'
-    + '  var headings = tab.querySelectorAll("h1,h2,h3,strong");'
+    + '  var headings = tab.querySelectorAll("h2,h3");'
     + '  for (var i = 0; i < headings.length; i++) {'
     + '    if (normalizeTopicText(headings[i].textContent).includes(targetText)) { headings[i].scrollIntoView({behavior:"smooth", block:"start"}); return; }'
     + '  }'
+    + '  var allCandidates = tab.querySelectorAll("h1,h2,h3,strong,td,li,p");'
+    + '  for (var j = 0; j < allCandidates.length; j++) {'
+    + '    if (normalizeTopicText(allCandidates[j].textContent).includes(targetText)) { allCandidates[j].scrollIntoView({behavior:"smooth", block:"start"}); return; }'
+    + '  }'
     + '  tab.scrollIntoView({behavior:"smooth", block:"start"});'
     + '}'
+    + 'document.addEventListener("click", function(e) {'
+    + '  var btn = e.target.closest(".subtopic-jump-buttons button");'
+    + '  if (!btn) return;'
+    + '  scrollToSubTopic(btn.getAttribute("data-tab-idx"), btn.getAttribute("data-topic"));'
+    + '});'
     + '<\/script>'
     + '</body></html>';
 
