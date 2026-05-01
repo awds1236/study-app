@@ -4080,6 +4080,20 @@ function renderAnalysisResult(data) {
 }
 
 // ==================== 개념 정리 ====================
+function cleanConceptOutput(text) {
+  if (!text) return '';
+  let cleaned = text
+    .replace(/^\s*(---+|===+)\s*/g, '')
+    .replace(/^\s*(반갑습니다|안녕하세요)[\s\S]*?(?=#\s)/, '')
+    .replace(/^\s*(지금부터|이제|그럼|자,)\s*[\s\S]{0,120}?(정리하겠습니다|시작하겠습니다|살펴보겠습니다)\.?\s*/g, '')
+    .trim();
+  const firstTitleIndex = cleaned.search(/#\s+/);
+  if (firstTitleIndex > 0 && firstTitleIndex < 600) {
+    cleaned = cleaned.slice(firstTitleIndex).trim();
+  }
+  return cleaned;
+}
+
 async function generateConcept() {
   const subject = document.getElementById('conceptSubject').value;
   const subTopic = document.getElementById('conceptSubTopic').value;
@@ -4120,7 +4134,7 @@ async function generateConcept() {
 
   try {
     const prompt = buildConceptPrompt(subject, subTopic, keyword, topicLabel);
-    const result = await callGemini(prompt);
+    const result = cleanConceptOutput(await callGemini(prompt));
 
     const concept = {
       id: generateId(),
@@ -4195,7 +4209,11 @@ ${detailTopics.map((t, i) => `${i + 1}. ${t}`).join('\n')}
 ${getRelatedExamQuestions(subject, detailTopics.join(' '), 8)}
 
 ⚠️ 가장 중요한 원칙:
+- 인사말, 강사 소개, "반갑습니다", "시작하겠습니다" 같은 도입 문장을 쓰지 말고 반드시 바로 "# ${topicLabel} 개념 정리"로 시작하세요.
 - 아래 소주제 목록을 **하나도 빠뜨리지 마세요.**
+- 먼저 소주제별 시험 중요도를 상/중/하로 판단한 뒤, **중요도 높은 소주제부터** 정리하세요.
+- 본문 초반에 "소주제 중요도 지도" 표를 만들고, 각 소주제의 중요도와 정리 순서를 보여주세요.
+- 소주제 본문은 반드시 소주제마다 별도의 ## 제목으로 나누고, 제목에 중요도를 함께 표시하세요.
 - 고정 목차를 채우느라 소주제 설명을 줄이지 마세요. **소주제별 완성도**가 목차 형식보다 우선입니다.
 - 각 소주제는 독립적으로 공부해도 이해될 만큼 정의, 원리, 예시, 시험 포인트를 포함하세요.
 - 내용이 많으면 불필요한 서론, 역사, 최신 동향, 장황한 총론은 줄이고 소주제 본문에 토큰을 쓰세요.
@@ -4205,16 +4223,22 @@ ${getRelatedExamQuestions(subject, detailTopics.join(' '), 8)}
 
 # ${topicLabel} 개념 정리
 
+## 소주제 중요도 지도
+- 아래 소주제를 중요도 상/중/하로 분류하고, 정리 순서를 표로 제시
+- 중요도 판단 기준: 최근 기출 빈도, 다른 개념과의 연결성, 응용 문제 출제 가능성, 암기 부담
+
 ## 전체 구조 한눈에 보기
-- 이 대주제 안에서 각 소주제가 어떻게 연결되는지 간단히 정리
+- 중요도 높은 소주제부터 이 대주제가 어떻게 연결되는지 간단히 정리
 - 먼저 외워야 할 핵심 흐름 또는 분류 체계
 
-${detailTopics.map((t, i) => `## ${i + 1}. ${t}
+## [중요도: 상/중/하] 소주제명
 - 정의와 핵심 용어
 - 왜 필요한지와 동작 원리
 - 대표 예시 또는 계산/절차가 있으면 단계별 설명
 - 시험에서 자주 묻는 포인트
-- 헷갈리는 개념, 함정, 비교 포인트`).join('\n\n')}
+- 헷갈리는 개념, 함정, 비교 포인트
+- 위 형식을 반복하되, 반드시 중요도 높은 소주제부터 작성
+- 위 "소주제명" 자리에는 반드시 실제 소주제명을 넣고, 목록에 있는 모든 소주제를 빠짐없이 별도 섹션으로 작성
 
 ## 마무리 정리
 - 전체 소주제를 연결하는 요약
@@ -4222,7 +4246,9 @@ ${detailTopics.map((t, i) => `## ${i + 1}. ${t}
 - 서로 헷갈리기 쉬운 항목 비교
 
 작성 규칙:
+- 출력은 반드시 제목부터 시작하세요. 인사말, 안내 멘트, 구분선(---)으로 시작하지 마세요.
 - 각 소주제마다 가능한 한 충분히 작성하세요. 짧은 요약으로 넘기지 마세요.
+- 소주제 제목에는 실제 소주제명을 포함하세요. 예: ## [중요도: 상] CPU 구성과 레지스터
 - 소주제별 분량은 중요도에 따라 자유롭게 조절하되, 핵심 설명이 빠지면 안 됩니다.
 - 볼드(**), 리스트(-), 코드(\`\`), 표를 적절히 사용하세요.
 - 제목은 #, ##, ### 까지만 사용하세요.
@@ -4241,6 +4267,7 @@ ${keyword ? `키워드/주제: ${keyword}` : ''}
 ${getRelatedExamQuestions(subject, subTopic || keyword)}
 
 ⚠️ 중요 원칙:
+- 인사말, 강사 소개, "반갑습니다", "시작하겠습니다" 같은 도입 문장을 쓰지 말고 반드시 바로 "# ${topicLabel} 개념 정리"로 시작하세요.
 - 위 기출문제가 있다면, 이 문제들의 출제 패턴과 난이도를 반드시 반영하세요
 - 9급 공무원 한국사는 **세부적인 사실관계**(연도, 인물, 사건, 제도)에서 출제됩니다
 - 단순 흐름 정리가 아니라, **시험에 나오는 구체적 사실**을 빠짐없이 다루세요
@@ -4291,6 +4318,7 @@ ${getRelatedExamQuestions(subject, subTopic || keyword)}
 - 선택지에서 헷갈리는 오답 유형
 
 절대 규칙:
+- 출력은 반드시 제목부터 시작하세요. 인사말, 안내 멘트, 구분선(---)으로 시작하지 마세요.
 - **최소 6000자 이상** 매우 상세하고 세밀하게 작성하세요
 - 모든 사건에 **연도**를 반드시 병기하세요
 - 인물-업적-연도를 정확히 연결하세요
@@ -4311,6 +4339,7 @@ ${keyword ? `키워드/주제: ${keyword}` : ''}
 ${getRelatedExamQuestions(subject, subTopic || keyword)}
 
 ⚠️ 중요 원칙:
+- 인사말, 강사 소개, "반갑습니다", "시작하겠습니다" 같은 도입 문장을 쓰지 말고 반드시 바로 "# ${topicLabel} 개념 정리"로 시작하세요.
 - 위 기출문제가 있다면, 이 문제들의 출제 패턴과 난이도를 반드시 반영하세요
 - 이것은 9급 공무원 ${subject || '일반과목'} 시험입니다
 - 실제 시험에서 출제되는 내용과 유형을 기반으로 작성하세요
@@ -4356,6 +4385,7 @@ ${subTopic ? `- "${subTopic}" 분야의 모든 세부 항목을 빠짐없이 다
 - 종합 요약표
 
 절대 규칙:
+- 출력은 반드시 제목부터 시작하세요. 인사말, 안내 멘트, 구분선(---)으로 시작하지 마세요.
 - **최소 4000자 이상** 매우 상세하게 작성하세요
 - 각 소주제마다 **구체적인 예시**를 반드시 포함하세요
 - 비교가 가능한 개념은 반드시 **표(table)**로 정리하세요
@@ -4374,6 +4404,7 @@ ${keyword ? `키워드/주제: ${keyword}` : ''}
 ${getRelatedExamQuestions(subject, subTopic || keyword)}
 
 ⚠️ 중요 원칙:
+- 인사말, 강사 소개, "반갑습니다", "시작하겠습니다" 같은 도입 문장을 쓰지 말고 반드시 바로 "# ${topicLabel} 개념 정리"로 시작하세요.
 - 위 기출문제가 있다면, 이 문제들의 출제 패턴과 난이도를 반드시 반영하세요
 - 이것은 NCS 직업기초능력평가입니다. **전산학/IT 내용과 전혀 관련 없습니다!**
 - 해당 영역의 **NCS 직업기초능력 이론과 실제 출제 유형**을 기반으로 작성하세요
@@ -4433,6 +4464,7 @@ ${subTopic ? `- "${subTopic}" 분야의 모든 세부 항목을 빠짐없이 다
 - 한눈에 볼 수 있는 **종합 요약표**
 
 절대 규칙:
+- 출력은 반드시 제목부터 시작하세요. 인사말, 안내 멘트, 구분선(---)으로 시작하지 마세요.
 - **최소 4000자 이상** 매우 상세하게 작성하세요 (짧으면 안 됩니다!)
 - **전산학, 컴퓨터, IT, 프로그래밍 관련 비유나 설명을 절대 사용하지 마세요!**
 - NCS 직업기초능력의 본래 취지(직장생활에 필요한 기초능력)에 맞게 작성하세요
@@ -4454,6 +4486,7 @@ ${keyword ? `키워드/주제: ${keyword}` : ''}
 ${getRelatedExamQuestions(subject, subTopic || keyword)}
 
 ⚠️ 중요 원칙:
+- 인사말, 강사 소개, "반갑습니다", "시작하겠습니다" 같은 도입 문장을 쓰지 말고 반드시 바로 "# ${topicLabel} 개념 정리"로 시작하세요.
 - 위 기출문제가 있다면, 이 문제들이 실제로 출제된 수준과 유형을 반드시 반영하세요
 - 기출문제에 나온 내용만 다루지 마세요!
 - 해당 주제와 관련된 **전산학 전체 이론 체계**를 기반으로 작성하세요
@@ -4516,6 +4549,7 @@ ${subTopic ? `- "${subTopic}" 분야의 모든 세부 항목을 빠짐없이 다
 - 시험 직전에 볼 수 있는 키워드 모음
 
 절대 규칙:
+- 출력은 반드시 제목부터 시작하세요. 인사말, 안내 멘트, 구분선(---)으로 시작하지 마세요.
 - **최소 4000자 이상** 매우 상세하게 작성하세요 (짧으면 안 됩니다!)
 - 기출문제 범위에 국한하지 말고, 전산학 전공 수준의 깊이로 작성하세요
 - 원리를 이해시켜서 처음 보는 문제도 풀 수 있게 하세요
@@ -4598,7 +4632,7 @@ async function generateConceptBySubTopics(subject, subTopics) {
         const st = subTopics[i];
         loadingText.textContent = `[${i + 1}/${subTopics.length}] "${st}" 개념 정리 중...`;
         const prompt = buildConceptPrompt(subject, st, '', `${subject} - ${st}`);
-        const result = await callGemini(prompt);
+        const result = cleanConceptOutput(await callGemini(prompt));
         results.push({ subTopic: st, content: result });
       }
     } else {
@@ -4620,8 +4654,8 @@ async function generateConceptBySubTopics(subject, subTopics) {
           majorName,
           detailTopics: relatedTopics
         });
-        const result = await callGemini(prompt);
-        results.push({ subTopic: `${majorName} (${relatedTopics.length}개: ${topicsList})`, content: result });
+        const result = cleanConceptOutput(await callGemini(prompt));
+        results.push({ subTopic: majorName, detailTopics: relatedTopics, content: result });
       }
     }
 
@@ -4681,8 +4715,8 @@ async function generateAllSubjectsConcept() {
           majorName,
           detailTopics: relatedTopics
         });
-        const result = await callGemini(prompt);
-        results.push({ subTopic: `${subj} > ${majorName}`, content: result });
+        const result = cleanConceptOutput(await callGemini(prompt));
+        results.push({ subTopic: `${subj} > ${majorName}`, detailTopics: relatedTopics, content: result });
       }
     }
 
@@ -4757,6 +4791,7 @@ ${topicsStr}
 ...
 
 절대 규칙:
+- 출력은 반드시 제목부터 시작하세요. 인사말, 안내 멘트, 구분선(---)으로 시작하지 마세요.
 - 각 주제당 **최소 1000자 이상** 작성하세요
 - 기출에 나온 내용 + **아직 출제되지 않은 관련 이론**까지 포함
 - 전산학 전공 교재 수준의 깊이로 작성하세요
@@ -4765,7 +4800,7 @@ ${topicsStr}
 - 줄바꿈을 충분히 사용해주세요
 - 출제 빈도가 높은 주제를 우선적으로 다루되, 미출제 중요 개념도 포함하세요`;
 
-    const result = await callGemini(prompt);
+    const result = cleanConceptOutput(await callGemini(prompt));
 
     const concept = {
       id: generateId(),
@@ -4886,17 +4921,48 @@ function openTabbedConceptViewPage(title, subject, subTopicContents) {
   var accentColor = isDark ? '#6ee7b7' : '#059669';
   var h3Color = isDark ? '#a5b4fc' : '#4f46e5';
 
+  function escapeHtml(value) {
+    return String(value || '').replace(/[&<>"']/g, function(ch) {
+      return ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'})[ch];
+    });
+  }
+
+  function getTabTitle(item) {
+    var name = String(item.subTopic || '개념');
+    return name.replace(/\s*\(\d+개:\s*[\s\S]*?\)\s*$/, '');
+  }
+
+  function getJumpTopics(item) {
+    if (Array.isArray(item.detailTopics) && item.detailTopics.length > 0) return item.detailTopics;
+    var match = String(item.subTopic || '').match(/\(\d+개:\s*([\s\S]*?)\)\s*$/);
+    if (!match) return [];
+    return match[1].split(',').map(function(t) { return t.trim(); }).filter(Boolean);
+  }
+
+  function buildJumpNav(item, tabIdx) {
+    var topics = getJumpTopics(item);
+    if (topics.length === 0) return '';
+    return '<div class="subtopic-jump-nav"><div class="subtopic-jump-title">소주제 바로가기</div>'
+      + '<div class="subtopic-jump-buttons">'
+      + topics.map(function(topic) {
+        return '<button type="button" onclick="scrollToSubTopic(' + tabIdx + ', ' + JSON.stringify(topic) + ')">' + escapeHtml(topic) + '</button>';
+      }).join('')
+      + '</div></div>';
+  }
+
   var tabsHtml = subTopicContents.map(function(item, idx) {
-    return '<div class="concept-tab' + (idx === 0 ? ' active' : '') + '" onclick="switchConceptTab(' + idx + ')">' + item.subTopic + '</div>';
+    return '<div class="concept-tab' + (idx === 0 ? ' active' : '') + '" onclick="switchConceptTab(' + idx + ')">' + escapeHtml(getTabTitle(item)) + '</div>';
   }).join('');
 
   var contentsHtml = subTopicContents.map(function(item, idx) {
-    return '<div class="concept-tab-content" id="ctab-' + idx + '" style="' + (idx === 0 ? '' : 'display:none;') + '">' + formatMarkdown(item.content) + '</div>';
+    return '<div class="concept-tab-content" id="ctab-' + idx + '" style="' + (idx === 0 ? '' : 'display:none;') + '">' + buildJumpNav(item, idx) + formatMarkdown(item.content) + '</div>';
   }).join('');
 
+  var safeTitle = escapeHtml(title);
+  var safeSubject = escapeHtml(subject);
   var pageHtml = '<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">'
     + '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
-    + '<title>' + title + '</title>'
+    + '<title>' + safeTitle + '</title>'
     + '<style>'
     + '* { margin:0; padding:0; box-sizing:border-box; }'
     + 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", sans-serif; background:' + bg + '; color:' + textColor + '; }'
@@ -4909,7 +4975,13 @@ function openTabbedConceptViewPage(title, subject, subTopicContents) {
     + '.concept-tab:hover { color:' + textColor + '; }'
     + '.concept-tab.active { color:' + primaryColor + '; border-bottom-color:' + primaryColor + '; }'
     + '.content { max-width:860px; margin:0 auto; padding:40px; line-height:2.0; font-size:15px; }'
+    + '.subtopic-jump-nav { margin:0 0 28px; padding:16px; border:1px solid ' + borderColor + '; border-radius:8px; background:' + cardBg + '; }'
+    + '.subtopic-jump-title { font-size:13px; font-weight:700; color:' + mutedColor + '; margin-bottom:10px; }'
+    + '.subtopic-jump-buttons { display:flex; flex-wrap:wrap; gap:8px; }'
+    + '.subtopic-jump-buttons button { border:1px solid ' + borderColor + '; border-radius:6px; background:' + hoverBg + '; color:' + textColor + '; padding:7px 10px; font-size:12px; font-weight:600; cursor:pointer; line-height:1.3; }'
+    + '.subtopic-jump-buttons button:hover { border-color:' + primaryColor + '; color:' + primaryColor + '; }'
     + 'h1,h2,h3 { color:' + primaryColor + '; margin-top:28px; margin-bottom:14px; }'
+    + 'h1,h2,h3,strong { scroll-margin-top:120px; }'
     + 'h1 { font-size:24px; border-bottom:2px solid ' + borderColor + '; padding-bottom:12px; }'
     + 'h2 { font-size:20px; } h3 { font-size:17px; color:' + h3Color + '; }'
     + 'p { margin-bottom:16px; } ul,ol { padding-left:28px; margin:12px 0; }'
@@ -4924,9 +4996,9 @@ function openTabbedConceptViewPage(title, subject, subTopicContents) {
     + 'td { font-size:14px; }'
     + 'blockquote { border-left:3px solid ' + primaryColor + '; padding:12px 20px; background:rgba(129,140,248,0.08); margin:16px 0; border-radius:0 8px 8px 0; }'
     + '::-webkit-scrollbar { width:6px; } ::-webkit-scrollbar-track { background:' + bg + '; } ::-webkit-scrollbar-thumb { background:' + borderColor + '; border-radius:3px; }'
-    + '@media(max-width:768px){.topbar{padding:12px 16px;}.topbar h1{font-size:16px;}.concept-tabs{padding:0 12px;}.concept-tab{padding:10px 14px;font-size:13px;}.content{padding:20px 16px;font-size:14px;}h1{font-size:20px;}h2{font-size:17px;}h3{font-size:15px;}table{display:block;overflow-x:auto;}th,td{padding:8px;white-space:nowrap;font-size:12px;}}'
+    + '@media(max-width:768px){.topbar{padding:12px 16px;}.topbar h1{font-size:16px;}.concept-tabs{padding:0 12px;}.concept-tab{padding:10px 14px;font-size:13px;}.content{padding:20px 16px;font-size:14px;}.subtopic-jump-buttons button{max-width:100%;}h1{font-size:20px;}h2{font-size:17px;}h3{font-size:15px;}table{display:block;overflow-x:auto;}th,td{padding:8px;white-space:nowrap;font-size:12px;}}'
     + '</style></head><body>'
-    + '<div class="topbar"><h1>' + title + '</h1><span class="tag">' + subject + '</span>'
+    + '<div class="topbar"><h1>' + safeTitle + '</h1><span class="tag">' + safeSubject + '</span>'
     + '<button class="close-btn" onclick="window.close()">✕ 닫기</button></div>'
     + '<div class="concept-tabs">' + tabsHtml + '</div>'
     + '<div class="content">' + contentsHtml + '</div>'
@@ -4935,6 +5007,17 @@ function openTabbedConceptViewPage(title, subject, subTopicContents) {
     + '  document.querySelectorAll(".concept-tab").forEach(function(t,i) { t.classList.toggle("active", i===idx); });'
     + '  document.querySelectorAll(".concept-tab-content").forEach(function(c,i) { c.style.display = i===idx ? "" : "none"; });'
     + '  window.scrollTo(0, 0);'
+    + '}'
+    + 'function normalizeTopicText(text) { return String(text || "").replace(/\\s+/g, "").toLowerCase(); }'
+    + 'function scrollToSubTopic(tabIdx, label) {'
+    + '  var tab = document.getElementById("ctab-" + tabIdx);'
+    + '  if (!tab) return;'
+    + '  var targetText = normalizeTopicText(label);'
+    + '  var headings = tab.querySelectorAll("h1,h2,h3,strong");'
+    + '  for (var i = 0; i < headings.length; i++) {'
+    + '    if (normalizeTopicText(headings[i].textContent).includes(targetText)) { headings[i].scrollIntoView({behavior:"smooth", block:"start"}); return; }'
+    + '  }'
+    + '  tab.scrollIntoView({behavior:"smooth", block:"start"});'
     + '}'
     + '<\/script>'
     + '</body></html>';
