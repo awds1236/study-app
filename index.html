@@ -4171,16 +4171,64 @@ function getRelatedExamQuestions(subject, subTopic, maxCount = 10) {
   return `\n\n📋 관련 기출문제 (${filtered.length}문제):\n${summary}`;
 }
 
-function buildConceptPrompt(subject, subTopic, keyword, topicLabel) {
+function buildConceptPrompt(subject, subTopic, keyword, topicLabel, options = {}) {
   const subTopicInstruction = subTopic
     ? `\n세부 분야: ${subTopic}\n이 세부 분야에 대해 매우 깊이 있고 상세하게 다뤄주세요.`
     : (keyword ? '' : '\n이 과목의 전반적인 핵심 내용을 상세하게 정리해주세요.');
+  const detailTopics = Array.isArray(options.detailTopics) ? options.detailTopics.filter(Boolean) : [];
+  const isComprehensiveCsPrompt = currentMode !== 'general' && currentMode !== 'ncs' && options.comprehensive && detailTopics.length > 1;
 
   const roleDesc = currentMode === 'ncs'
     ? '당신은 NCS 직업기초능력평가를 20년간 가르친 최고 전문 강사입니다.\n직업기초능력 10개 영역을 깊이 있게 가르치며, 어떤 유형의 문제가 나와도 풀 수 있게 하는 것으로 유명합니다.'
     : currentMode === 'general'
     ? '당신은 한국 9급 공무원 시험의 국어, 영어, 한국사를 20년간 가르친 최고 전문 강사입니다.\n당신의 강의는 단순 암기가 아닌, 핵심 원리를 이해시켜 어떤 응용 문제가 나와도 풀 수 있게 하는 것으로 유명합니다.'
     : '당신은 한국 9급 공무원 전산직 시험을 20년간 가르친 최고 전문 강사이자, 전산학 전공 교수입니다.\n당신의 강의는 단순 암기가 아닌, 원리를 이해시켜 어떤 응용 문제가 나와도 풀 수 있게 하는 것으로 유명합니다.';
+
+  if (isComprehensiveCsPrompt) {
+    return `${roleDesc}
+
+다음 대주제에 포함된 여러 소주제를 **시험 대비용 완결 노트**로 정리해주세요.
+과목: ${subject || '전산학'}
+대주제: ${topicLabel}
+반드시 다룰 소주제:
+${detailTopics.map((t, i) => `${i + 1}. ${t}`).join('\n')}
+${getRelatedExamQuestions(subject, detailTopics.join(' '), 8)}
+
+⚠️ 가장 중요한 원칙:
+- 아래 소주제 목록을 **하나도 빠뜨리지 마세요.**
+- 고정 목차를 채우느라 소주제 설명을 줄이지 마세요. **소주제별 완성도**가 목차 형식보다 우선입니다.
+- 각 소주제는 독립적으로 공부해도 이해될 만큼 정의, 원리, 예시, 시험 포인트를 포함하세요.
+- 내용이 많으면 불필요한 서론, 역사, 최신 동향, 장황한 총론은 줄이고 소주제 본문에 토큰을 쓰세요.
+- 표는 도움이 될 때만 사용하세요. 표를 만들기 위해 설명을 생략하지 마세요.
+
+권장 구성:
+
+# ${topicLabel} 개념 정리
+
+## 전체 구조 한눈에 보기
+- 이 대주제 안에서 각 소주제가 어떻게 연결되는지 간단히 정리
+- 먼저 외워야 할 핵심 흐름 또는 분류 체계
+
+${detailTopics.map((t, i) => `## ${i + 1}. ${t}
+- 정의와 핵심 용어
+- 왜 필요한지와 동작 원리
+- 대표 예시 또는 계산/절차가 있으면 단계별 설명
+- 시험에서 자주 묻는 포인트
+- 헷갈리는 개념, 함정, 비교 포인트`).join('\n\n')}
+
+## 마무리 정리
+- 전체 소주제를 연결하는 요약
+- 시험 직전 체크리스트
+- 서로 헷갈리기 쉬운 항목 비교
+
+작성 규칙:
+- 각 소주제마다 가능한 한 충분히 작성하세요. 짧은 요약으로 넘기지 마세요.
+- 소주제별 분량은 중요도에 따라 자유롭게 조절하되, 핵심 설명이 빠지면 안 됩니다.
+- 볼드(**), 리스트(-), 코드(\`\`), 표를 적절히 사용하세요.
+- 제목은 #, ##, ### 까지만 사용하세요.
+- **절대 LaTeX 문법($...$, \\frac, \\sum 등)을 사용하지 마세요.** 수식은 일반 텍스트로 작성하세요. 예: O(log n), n/2, X < Y.
+- 사람이 직접 정리한 강의 노트처럼 자연스럽고 읽기 쉽게 작성하세요.`;
+  }
 
   if (currentMode === 'general') {
     // 한국사 전용 상세 프롬프트
@@ -4544,7 +4592,11 @@ async function generateConceptBySubTopics(subject, subTopics) {
         const [majorName, relatedTopics] = majorCategories[i];
         loadingText.textContent = `[${i + 1}/${majorCategories.length}] "${majorName}" (${relatedTopics.length}개 세부과목) 개념 정리 중...`;
         const topicsList = relatedTopics.join(', ');
-        const prompt = buildConceptPrompt(subject, '', topicsList, `${subject} - ${majorName}`);
+        const prompt = buildConceptPrompt(subject, '', topicsList, `${subject} - ${majorName}`, {
+          comprehensive: true,
+          majorName,
+          detailTopics: relatedTopics
+        });
         const result = await callGemini(prompt);
         results.push({ subTopic: `${majorName} (${relatedTopics.length}개: ${topicsList})`, content: result });
       }
@@ -4601,7 +4653,11 @@ async function generateAllSubjectsConcept() {
         currentStep++;
         loadingText.textContent = `[${currentStep}/${totalSteps}] ${subj} > "${majorName}" (${relatedTopics.length}개) 개념 정리 중...`;
         const topicsList = relatedTopics.join(', ');
-        const prompt = buildConceptPrompt(subj, '', topicsList, `${subj} - ${majorName}`);
+        const prompt = buildConceptPrompt(subj, '', topicsList, `${subj} - ${majorName}`, {
+          comprehensive: true,
+          majorName,
+          detailTopics: relatedTopics
+        });
         const result = await callGemini(prompt);
         results.push({ subTopic: `${subj} > ${majorName}`, content: result });
       }
