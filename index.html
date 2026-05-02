@@ -616,7 +616,7 @@ body.mode-ncs .cs-only { display: none !important; }
 
 <!-- 메인 -->
 <div class="main">
-<div id="appVersion" style="position:fixed; top:8px; right:16px; z-index:9999; font-size:11px; color:var(--c-text-muted); background:var(--c-bg-card); padding:2px 10px; border-radius:12px; border:1px solid var(--c-border); opacity:0.7;">v2.10.2</div>
+<div id="appVersion" style="position:fixed; top:8px; right:16px; z-index:9999; font-size:11px; color:var(--c-text-muted); background:var(--c-bg-card); padding:2px 10px; border-radius:12px; border:1px solid var(--c-border); opacity:0.7;">v2.10.3</div>
 
   <!-- ===== 홈/대시보드 ===== -->
   <div class="page active" id="page-home">
@@ -1452,6 +1452,7 @@ async function syncToCloud(silent = false) {
     const mainData = {
       subjects: APP_STATE.subjects,
       subTopics: APP_STATE.subTopics,
+      majorCategoryMap: APP_STATE.majorCategoryMap || {},
       weaknesses: APP_STATE.weaknesses,
       quizHistory: APP_STATE.quizHistory,
       analysisData: APP_STATE.analysisData,
@@ -1460,6 +1461,7 @@ async function syncToCloud(silent = false) {
       // CS
       cs_subjects: CS_STATE.subjects,
       cs_subTopics: CS_STATE.subTopics,
+      cs_majorCategoryMap: CS_STATE.majorCategoryMap || {},
       cs_weaknesses: CS_STATE.weaknesses,
       cs_quizHistory: CS_STATE.quizHistory,
       cs_previousQuestions: CS_STATE.previousQuestions,
@@ -1467,6 +1469,7 @@ async function syncToCloud(silent = false) {
       ncs_subjects: NCS_STATE.subjects,
       ncs_subTopics: NCS_STATE.subTopics,
       ncs_analysisData: NCS_STATE.analysisData,
+      ncs_majorCategoryMap: NCS_STATE.majorCategoryMap || {},
       ncs_weaknesses: NCS_STATE.weaknesses,
       ncs_quizHistory: NCS_STATE.quizHistory,
       ncs_previousQuestions: NCS_STATE.previousQuestions,
@@ -1475,6 +1478,7 @@ async function syncToCloud(silent = false) {
       general_subjects: GENERAL_STATE.subjects,
       general_subTopics: GENERAL_STATE.subTopics,
       general_analysisData: GENERAL_STATE.analysisData,
+      general_majorCategoryMap: GENERAL_STATE.majorCategoryMap || {},
       general_weaknesses: GENERAL_STATE.weaknesses,
       general_quizHistory: GENERAL_STATE.quizHistory,
       general_previousQuestions: GENERAL_STATE.previousQuestions,
@@ -1556,6 +1560,7 @@ async function syncFromCloud(silent = false) {
     // 메인 문서에서 소용량 데이터 복원
     if (data.subjects?.length) APP_STATE.subjects = data.subjects;
     if (data.subTopics) APP_STATE.subTopics = data.subTopics;
+    if (data.majorCategoryMap) APP_STATE.majorCategoryMap = data.majorCategoryMap;
     if (data.weaknesses) APP_STATE.weaknesses = data.weaknesses;
     if (data.quizHistory) APP_STATE.quizHistory = data.quizHistory;
     if (data.analysisData) APP_STATE.analysisData = data.analysisData;
@@ -1564,6 +1569,7 @@ async function syncFromCloud(silent = false) {
     // CS
     if (data.cs_subjects?.length) CS_STATE.subjects = data.cs_subjects;
     if (data.cs_subTopics) CS_STATE.subTopics = data.cs_subTopics;
+    if (data.cs_majorCategoryMap) CS_STATE.majorCategoryMap = data.cs_majorCategoryMap;
     if (data.cs_weaknesses) CS_STATE.weaknesses = data.cs_weaknesses;
     if (data.cs_quizHistory) CS_STATE.quizHistory = data.cs_quizHistory;
     if (data.cs_previousQuestions) CS_STATE.previousQuestions = data.cs_previousQuestions;
@@ -1571,6 +1577,7 @@ async function syncFromCloud(silent = false) {
     if (data.ncs_subjects?.length) NCS_STATE.subjects = data.ncs_subjects;
     if (data.ncs_subTopics) NCS_STATE.subTopics = data.ncs_subTopics;
     if (data.ncs_analysisData) NCS_STATE.analysisData = data.ncs_analysisData;
+    if (data.ncs_majorCategoryMap) NCS_STATE.majorCategoryMap = data.ncs_majorCategoryMap;
     if (data.ncs_weaknesses) NCS_STATE.weaknesses = data.ncs_weaknesses;
     if (data.ncs_quizHistory) NCS_STATE.quizHistory = data.ncs_quizHistory;
     if (data.ncs_previousQuestions) NCS_STATE.previousQuestions = data.ncs_previousQuestions;
@@ -1579,6 +1586,7 @@ async function syncFromCloud(silent = false) {
     if (data.general_subjects?.length) GENERAL_STATE.subjects = data.general_subjects;
     if (data.general_subTopics) GENERAL_STATE.subTopics = data.general_subTopics;
     if (data.general_analysisData) GENERAL_STATE.analysisData = data.general_analysisData;
+    if (data.general_majorCategoryMap) GENERAL_STATE.majorCategoryMap = data.general_majorCategoryMap;
     if (data.general_weaknesses) GENERAL_STATE.weaknesses = data.general_weaknesses;
     if (data.general_quizHistory) GENERAL_STATE.quizHistory = data.general_quizHistory;
     if (data.general_previousQuestions) GENERAL_STATE.previousQuestions = data.general_previousQuestions;
@@ -1682,12 +1690,12 @@ async function restoreFromIDB() {
   const keysToCheck = [
     'extracted_questions', 'concepts', 'weaknesses', 'weakness_concepts',
     'weakness_quizzes', 'quiz_history', 'generated_quizzes', 'previous_questions',
-    'analysis_data', 'subjects', 'sub_topics',
+    'analysis_data', 'subjects', 'sub_topics', 'major_category_map',
     'cs_concepts', 'cs_weaknesses', 'cs_weakness_concepts', 'cs_weakness_quizzes',
     'cs_quiz_history', 'cs_generated_quizzes', 'cs_previous_questions',
     'ncs_extracted_questions', 'ncs_concepts', 'ncs_weaknesses', 'ncs_weakness_concepts',
     'ncs_weakness_quizzes', 'ncs_quiz_history', 'ncs_generated_quizzes', 'ncs_previous_questions',
-    'ncs_analysis_data', 'ncs_subjects', 'ncs_sub_topics'
+    'ncs_analysis_data', 'ncs_subjects', 'ncs_sub_topics', 'ncs_major_category_map'
   ];
 
   // 상태 키 → 객체/필드 매핑
@@ -1703,6 +1711,7 @@ async function restoreFromIDB() {
     'analysis_data': [APP_STATE, 'analysisData'],
     'subjects': [APP_STATE, 'subjects'],
     'sub_topics': [APP_STATE, 'subTopics'],
+    'major_category_map': [APP_STATE, 'majorCategoryMap'],
     'cs_concepts': [CS_STATE, 'concepts'],
     'cs_weaknesses': [CS_STATE, 'weaknesses'],
     'cs_weakness_concepts': [CS_STATE, 'weaknessConcepts'],
@@ -1720,7 +1729,8 @@ async function restoreFromIDB() {
     'ncs_previous_questions': [NCS_STATE, 'previousQuestions'],
     'ncs_analysis_data': [NCS_STATE, 'analysisData'],
     'ncs_subjects': [NCS_STATE, 'subjects'],
-    'ncs_sub_topics': [NCS_STATE, 'subTopics']
+    'ncs_sub_topics': [NCS_STATE, 'subTopics'],
+    'ncs_major_category_map': [NCS_STATE, 'majorCategoryMap']
   };
 
   let restored = 0;
@@ -1751,7 +1761,7 @@ async function restoreFromIDB() {
   }
 }
 
-const DEFAULT_SUBJECTS = ['컴퓨터일반', '정보보호론', '인공지능', '데이터베이스론', '프로그래밍언어', '알고리즘'];
+const DEFAULT_SUBJECTS = ['컴퓨터일반', '정보보호론'];
 
 function hydrateDefaultSubjects(savedSubjects) {
   const subjects = Array.isArray(savedSubjects) && savedSubjects.length > 0 ? [...savedSubjects] : [];
@@ -1778,7 +1788,9 @@ function normalizeExamSubject(subject) {
 }
 
 function getExamSubTopicGuide(subject) {
-  return DEFAULT_SUBTOPICS[normalizeExamSubject(subject)] || [];
+  const normalized = normalizeExamSubject(subject);
+  if (!DEFAULT_SUBJECTS.includes(normalized)) return [];
+  return DEFAULT_SUBTOPICS[normalized] || [];
 }
 
 const LEGACY_DEFAULT_SUBTOPICS = {
@@ -1870,13 +1882,14 @@ const APP_STATE = {
   subjects: hydrateDefaultSubjects(safeParseArray('subjects')),
   subTopics: (() => {
     const saved = safeParseJSON('sub_topics') || {};
-    for (const [subj, topics] of Object.entries(DEFAULT_SUBTOPICS)) {
+    DEFAULT_SUBJECTS.forEach(subj => {
       saved[subj] = hydrateDefaultSubTopics(saved, subj);
-    }
+    });
     return saved;
   })(),
   uploadedFiles: [],
   analysisData: safeParseJSON('analysis_data'),
+  majorCategoryMap: safeParseJSON('major_category_map') || {},
   extractedQuestions: safeParseArray('extracted_questions'),
   concepts: safeParseArray('concepts'),
   weaknesses: safeParseArray('weaknesses'),
@@ -1895,12 +1908,13 @@ const CS_STATE = {
   subjects: hydrateDefaultSubjects(safeParseArray('cs_subjects')),
   subTopics: (() => {
     const saved = safeParseJSON('cs_sub_topics') || {};
-    for (const [subj, topics] of Object.entries(DEFAULT_SUBTOPICS)) {
+    DEFAULT_SUBJECTS.forEach(subj => {
       saved[subj] = hydrateDefaultSubTopics(saved, subj);
-    }
+    });
     return saved;
   })(),
   concepts: safeParseArray('cs_concepts'),
+  majorCategoryMap: safeParseJSON('cs_major_category_map') || {},
   weaknesses: safeParseArray('cs_weaknesses'),
   weaknessConcepts: safeParseArray('cs_weakness_concepts'),
   weaknessQuizzes: safeParseArray('cs_weakness_quizzes'),
@@ -1918,6 +1932,7 @@ const NCS_STATE = {
   subTopics: safeParseJSON('ncs_sub_topics') || {},
   uploadedFiles: [],
   analysisData: safeParseJSON('ncs_analysis_data'),
+  majorCategoryMap: safeParseJSON('ncs_major_category_map') || {},
   extractedQuestions: safeParseArray('ncs_extracted_questions'),
   concepts: safeParseArray('ncs_concepts'),
   weaknesses: safeParseArray('ncs_weaknesses'),
@@ -1944,6 +1959,7 @@ const GENERAL_STATE = {
   })(),
   uploadedFiles: [],
   analysisData: safeParseJSON('general_analysis_data'),
+  majorCategoryMap: safeParseJSON('general_major_category_map') || {},
   extractedQuestions: safeParseArray('general_extracted_questions'),
   concepts: safeParseArray('general_concepts'),
   weaknesses: safeParseArray('general_weaknesses'),
@@ -2201,6 +2217,7 @@ function saveState() {
   safeSetItem('subjects', JSON.stringify(APP_STATE.subjects));
   safeSetItem('sub_topics', JSON.stringify(APP_STATE.subTopics));
   safeSetItem('analysis_data', JSON.stringify(APP_STATE.analysisData));
+  safeSetItem('major_category_map', JSON.stringify(APP_STATE.majorCategoryMap || {}));
   safeSetItem('extracted_questions', JSON.stringify(APP_STATE.extractedQuestions));
   safeSetItem('concepts', JSON.stringify(APP_STATE.concepts));
   safeSetItem('weaknesses', JSON.stringify(APP_STATE.weaknesses));
@@ -2213,6 +2230,7 @@ function saveState() {
   // 전산학 학습 모드 데이터 저장
   safeSetItem('cs_subjects', JSON.stringify(CS_STATE.subjects));
   safeSetItem('cs_sub_topics', JSON.stringify(CS_STATE.subTopics));
+  safeSetItem('cs_major_category_map', JSON.stringify(CS_STATE.majorCategoryMap || {}));
   safeSetItem('cs_concepts', JSON.stringify(CS_STATE.concepts));
   safeSetItem('cs_weaknesses', JSON.stringify(CS_STATE.weaknesses));
   safeSetItem('cs_weakness_concepts', JSON.stringify(CS_STATE.weaknessConcepts));
@@ -2225,6 +2243,7 @@ function saveState() {
   safeSetItem('ncs_subjects', JSON.stringify(NCS_STATE.subjects));
   safeSetItem('ncs_sub_topics', JSON.stringify(NCS_STATE.subTopics));
   safeSetItem('ncs_analysis_data', JSON.stringify(NCS_STATE.analysisData));
+  safeSetItem('ncs_major_category_map', JSON.stringify(NCS_STATE.majorCategoryMap || {}));
   safeSetItem('ncs_extracted_questions', JSON.stringify(NCS_STATE.extractedQuestions));
   safeSetItem('ncs_concepts', JSON.stringify(NCS_STATE.concepts));
   safeSetItem('ncs_weaknesses', JSON.stringify(NCS_STATE.weaknesses));
@@ -2238,6 +2257,7 @@ function saveState() {
   safeSetItem('general_subjects', JSON.stringify(GENERAL_STATE.subjects));
   safeSetItem('general_sub_topics', JSON.stringify(GENERAL_STATE.subTopics));
   safeSetItem('general_analysis_data', JSON.stringify(GENERAL_STATE.analysisData));
+  safeSetItem('general_major_category_map', JSON.stringify(GENERAL_STATE.majorCategoryMap || {}));
   safeSetItem('general_extracted_questions', JSON.stringify(GENERAL_STATE.extractedQuestions));
   safeSetItem('general_concepts', JSON.stringify(GENERAL_STATE.concepts));
   safeSetItem('general_weaknesses', JSON.stringify(GENERAL_STATE.weaknesses));
@@ -2737,6 +2757,101 @@ function parseQuestionsFromText(text, fileName) {
   return questions.length >= 10 ? questions : null;
 }
 
+function cleanJsonResponse(text) {
+  return (text || '').replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+}
+
+function matchOriginalTopic(candidate, remainingTopics) {
+  const normalized = String(candidate || '').trim().toLowerCase();
+  if (!normalized) return '';
+  return remainingTopics.find(t => t.toLowerCase() === normalized)
+    || remainingTopics.find(t => t.toLowerCase().includes(normalized) || normalized.includes(t.toLowerCase()))
+    || '';
+}
+
+function normalizeDynamicMajorMap(aiGrouped, topicMap) {
+  const result = {};
+  const groupedSubjects = Array.isArray(aiGrouped?.subjects) ? aiGrouped.subjects : [];
+
+  groupedSubjects.forEach(groupedSubject => {
+    const subject = groupedSubject.subject;
+    if (!subject || !topicMap[subject]) return;
+
+    const originalTopics = Object.keys(topicMap[subject]);
+    const remaining = [...originalTopics];
+    const subjectMap = {};
+
+    (groupedSubject.majors || []).forEach(major => {
+      const majorName = String(major.name || '').trim();
+      if (!majorName || majorName === '기타') return;
+      const matchedTopics = [];
+
+      (major.topics || []).forEach(topicName => {
+        const matched = matchOriginalTopic(topicName, remaining);
+        if (!matched) return;
+        matchedTopics.push(matched);
+        remaining.splice(remaining.indexOf(matched), 1);
+      });
+
+      if (matchedTopics.length > 0) subjectMap[majorName] = matchedTopics;
+    });
+
+    if (remaining.length > 0) subjectMap['기타'] = remaining;
+    if (Object.keys(subjectMap).length > 0) result[subject] = subjectMap;
+  });
+
+  return result;
+}
+
+async function buildDynamicMajorCategoryMap(topicMap) {
+  const subjects = Object.entries(topicMap)
+    .map(([subject, topics]) => ({
+      subject,
+      topics: Object.values(topics)
+        .sort((a, b) => b.count - a.count)
+        .map(t => ({ name: t.name, count: t.count }))
+    }))
+    .filter(item => item.topics.length > 0);
+
+  if (subjects.length === 0) return {};
+
+  const prompt = `다음은 업로드한 기출문제를 분석해서 얻은 과목별 세부 주제 목록입니다.
+세부 주제들을 시험 공부에 자연스러운 대주제로 다시 묶어주세요.
+
+입력:
+${JSON.stringify(subjects, null, 2)}
+
+반환 형식:
+{
+  "subjects": [
+    {
+      "subject": "입력 과목명 그대로",
+      "majors": [
+        { "name": "대주제명", "topics": ["입력에 있던 세부 주제명"] }
+      ]
+    }
+  ]
+}
+
+규칙:
+- subject와 topics는 입력에 있는 문자열을 그대로 사용하세요.
+- 모든 세부 주제를 정확히 한 번씩만 포함하세요.
+- 대주제는 과목별로 3~10개 정도로 묶되, 주제가 적으면 더 적어도 됩니다.
+- 대주제명은 "기타"를 최대한 피하고, 시험 범위/전공 체계에 맞는 이름으로 작성하세요.
+- 세부 주제를 새로 만들거나 삭제하지 마세요.
+- 유효한 JSON만 반환하세요.`;
+
+  try {
+    const result = await callGemini(prompt);
+    const parsed = JSON.parse(cleanJsonResponse(result));
+    return normalizeDynamicMajorMap(parsed, topicMap);
+  } catch (e) {
+    console.warn('동적 대주제 분류 실패:', e);
+    showToast('대주제 자동 묶음은 실패했지만, 문제 분석 결과는 저장됩니다.', 'warning');
+    return {};
+  }
+}
+
 async function analyzeFiles() {
   if (getState().uploadedFiles.length === 0) return;
 
@@ -2861,7 +2976,7 @@ ${JSON.stringify(compactQuestions)}
 - JSON만 반환`;
 
             const classifyResult = await callGemini(classifyPrompt);
-            const classifyJson = JSON.parse(classifyResult.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
+            const classifyJson = JSON.parse(cleanJsonResponse(classifyResult));
             if (classifyJson.subject) {
               fileSubject = currentMode === 'exam'
                 ? normalizeExamSubject(classifyJson.subject) || classifyJson.subject
@@ -2946,7 +3061,7 @@ ${useTextMode ? `\n아래는 PDF에서 추출한 시험 문제 텍스트입니�
 
           let aiParsed;
           try {
-            aiParsed = JSON.parse(result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
+            aiParsed = JSON.parse(cleanJsonResponse(result));
           } catch {
             failedFiles.push(fileName);
             continue;
@@ -3011,6 +3126,18 @@ ${useTextMode ? `\n아래는 PDF에서 추출한 시험 문제 텍스트입니�
         existing.push(q);
       }
     });
+
+    // 추출된 세부 주제를 Gemini로 다시 묶어 과목별 대주제를 동적으로 생성
+    if (currentMode === 'exam' && Object.keys(allTopicMap).length > 0) {
+      document.getElementById('analyzeLoadingText').textContent = '세부 주제를 대주제로 자동 묶는 중...';
+      const dynamicMajorMap = await buildDynamicMajorCategoryMap(allTopicMap);
+      if (Object.keys(dynamicMajorMap).length > 0) {
+        getState().majorCategoryMap = {
+          ...(getState().majorCategoryMap || {}),
+          ...dynamicMajorMap
+        };
+      }
+    }
 
     // 분석 데이터 구성
     const categories = Object.entries(allTopicMap).map(([subject, topics]) => {
@@ -4748,24 +4875,47 @@ const COMMON_MAJOR_CATEGORY_MAP = {
   '인공지능': MAJOR_CATEGORY_MAP['인공지능']['머신러닝'].concat(MAJOR_CATEGORY_MAP['인공지능']['신경망과 딥러닝'], MAJOR_CATEGORY_MAP['인공지능']['탐색과 최적화'])
 };
 
+function getDynamicCategoryMap(subject) {
+  const dynamicMaps = getState().majorCategoryMap || {};
+  return dynamicMaps[subject] || null;
+}
+
 function getCategoryMap(subject) {
-  return MAJOR_CATEGORY_MAP[subject] || COMMON_MAJOR_CATEGORY_MAP;
+  const dynamicMap = getDynamicCategoryMap(subject);
+  const fallbackMap = MAJOR_CATEGORY_MAP[subject] || COMMON_MAJOR_CATEGORY_MAP;
+  return dynamicMap ? { ...dynamicMap, ...fallbackMap } : fallbackMap;
 }
 
 // 세부과목을 대분류로 매핑
 function getMajorCategory(subject, subTopic) {
-  const categoryMap = getCategoryMap(subject);
-  if (!categoryMap) return '기타';
+  const dynamicMap = getDynamicCategoryMap(subject);
+  if (dynamicMap) {
+    const dynamicMajor = findMajorInCategoryMap(dynamicMap, subTopic, true);
+    if (dynamicMajor) return dynamicMajor;
+  }
 
+  const categoryMap = MAJOR_CATEGORY_MAP[subject] || COMMON_MAJOR_CATEGORY_MAP;
+  const fallbackMajor = findMajorInCategoryMap(categoryMap, subTopic, false);
+  return fallbackMajor || '기타';
+}
+
+function findMajorInCategoryMap(categoryMap, subTopic, exactFirst = false) {
+  if (!categoryMap || !subTopic) return '';
   const stLower = subTopic.toLowerCase();
+  if (exactFirst) {
+    for (const [major, keywords] of Object.entries(categoryMap)) {
+      if ((keywords || []).some(kw => stLower === String(kw).toLowerCase())) return major;
+    }
+  }
   for (const [major, keywords] of Object.entries(categoryMap)) {
     for (const kw of keywords) {
-      if (stLower.includes(kw.toLowerCase()) || kw.toLowerCase().includes(stLower)) {
+      const kwLower = String(kw).toLowerCase();
+      if (stLower.includes(kwLower) || kwLower.includes(stLower)) {
         return major;
       }
     }
   }
-  return '기타';
+  return '';
 }
 
 // 세부과목을 대분류별로 그룹핑
@@ -6923,6 +7073,7 @@ function exportData() {
     mode: currentMode,
     subjects: state.subjects,
     subTopics: state.subTopics,
+    majorCategoryMap: state.majorCategoryMap || {},
     concepts: state.concepts,
     weaknesses: state.weaknesses,
     weaknessConcepts: state.weaknessConcepts,
@@ -6952,6 +7103,7 @@ function importData(file) {
       const state = getState();
       if (data.subjects?.length) state.subjects = data.subjects;
       if (data.subTopics) state.subTopics = data.subTopics;
+      if (data.majorCategoryMap) state.majorCategoryMap = data.majorCategoryMap;
       if (data.concepts) state.concepts = data.concepts;
       if (data.weaknesses) state.weaknesses = data.weaknesses;
       if (data.weaknessConcepts) state.weaknessConcepts = data.weaknessConcepts;
@@ -6992,6 +7144,7 @@ function clearModeData(mode) {
   state.previousQuestions = [];
   if (state.extractedQuestions !== undefined) state.extractedQuestions = [];
   if (state.analysisData !== undefined) state.analysisData = null;
+  if (state.majorCategoryMap !== undefined) state.majorCategoryMap = {};
   if (state.answerSheets !== undefined) state.answerSheets = [];
   if (state.wrongNotes !== undefined) state.wrongNotes = [];
   if (mode === 'exam') localStorage.setItem('upload_count', '0');
@@ -7023,6 +7176,7 @@ function clearAllModesData() {
     state.previousQuestions = [];
     if (state.extractedQuestions !== undefined) state.extractedQuestions = [];
     if (state.analysisData !== undefined) state.analysisData = null;
+    if (state.majorCategoryMap !== undefined) state.majorCategoryMap = {};
     if (state.answerSheets !== undefined) state.answerSheets = [];
     if (state.wrongNotes !== undefined) state.wrongNotes = [];
   });
