@@ -2665,9 +2665,9 @@ body {
     </div>
 
     <div class="tabs">
-      <div class="tab active" onclick="switchWeaknessTab('list')">취약점 목록</div>
-      <div class="tab" onclick="switchWeaknessTab('conceptView')">개념 정리 모아보기</div>
-      <div class="tab" onclick="switchWeaknessTab('quizView')">문제 모아보기</div>
+      <div class="tab active" data-tab="list" onclick="switchWeaknessTab('list')">취약점 목록</div>
+      <div class="tab" data-tab="conceptView" onclick="switchWeaknessTab('conceptView')">개념 정리 모아보기</div>
+      <div class="tab" data-tab="quizView" onclick="switchWeaknessTab('quizView')">문제 모아보기</div>
     </div>
 
     <!-- 취약점 목록 -->
@@ -2681,7 +2681,7 @@ body {
     </div>
 
     <!-- 개념 정리 모아보기 -->
-    <div class="tab-content" id="weaknessTab-conceptView">
+    <div class="tab-content" id="weaknessTab-conceptView" hidden>
       <div style="margin-bottom:16px;">
         <button class="btn btn-primary" onclick="openAllWeaknessConceptsPage()">📖 전체 개념 한 페이지에서 보기</button>
       </div>
@@ -2694,7 +2694,7 @@ body {
     </div>
 
     <!-- 문제 모아보기 -->
-    <div class="tab-content" id="weaknessTab-quizView">
+    <div class="tab-content" id="weaknessTab-quizView" hidden>
       <div id="weaknessQuizCollection">
         <div class="empty-state">
           <div class="icon">✏️</div>
@@ -2714,9 +2714,9 @@ body {
     </div>
 
     <div class="tabs">
-      <div class="tab active" onclick="switchCollectionTab('concepts')">개념 정리</div>
-      <div class="tab" onclick="switchCollectionTab('quizzes')">생성된 문제</div>
-      <div class="tab" onclick="switchCollectionTab('history')">학습 기록</div>
+      <div class="tab active" data-tab="concepts" onclick="switchCollectionTab('concepts')">개념 정리</div>
+      <div class="tab" data-tab="quizzes" onclick="switchCollectionTab('quizzes')">생성된 문제</div>
+      <div class="tab" data-tab="history" onclick="switchCollectionTab('history')">학습 기록</div>
     </div>
 
     <div class="tab-content active" id="collectionTab-concepts">
@@ -2725,13 +2725,13 @@ body {
       </div>
     </div>
 
-    <div class="tab-content" id="collectionTab-quizzes">
+    <div class="tab-content" id="collectionTab-quizzes" hidden>
       <div id="collectionQuizzes">
         <div class="empty-state"><div class="icon">✏️</div><p>생성된 문제가 없습니다.</p></div>
       </div>
     </div>
 
-    <div class="tab-content" id="collectionTab-history">
+    <div class="tab-content" id="collectionTab-history" hidden>
       <div id="collectionHistory">
         <div class="empty-state"><div class="icon">📊</div><p>학습 기록이 없습니다.</p></div>
       </div>
@@ -4072,6 +4072,31 @@ function showToast(msg, type = 'info') {
   setTimeout(() => toast.remove(), 4000);
 }
 
+function setActivePage(id) {
+  document.querySelectorAll('.page').forEach(page => {
+    const isActive = page.id === 'page-' + id;
+    page.classList.toggle('active', isActive);
+    page.hidden = !isActive;
+    page.setAttribute('aria-hidden', String(!isActive));
+  });
+}
+
+function setActiveTab(pageSelector, tab) {
+  const page = document.querySelector(pageSelector);
+  if (!page) return;
+
+  page.querySelectorAll('.tab').forEach(tabButton => {
+    tabButton.classList.toggle('active', tabButton.dataset.tab === tab);
+  });
+
+  page.querySelectorAll('.tab-content').forEach(panel => {
+    const isActive = panel.id.endsWith('-' + tab);
+    panel.classList.toggle('active', isActive);
+    panel.hidden = !isActive;
+    panel.setAttribute('aria-hidden', String(!isActive));
+  });
+}
+
 function showPage(id) {
   // CS 모드에서 upload 페이지 접근 시 concepts로 리다이렉트
   if (id === 'upload' && currentMode === 'cs') {
@@ -4092,8 +4117,7 @@ function showPage(id) {
     if (conceptResult) conceptResult.innerHTML = '';
   }
 
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.getElementById('page-' + id).classList.add('active');
+  setActivePage(id);
 
   // 기출문제 풀기 페이지 진입 시 렌더링
   if (id === 'examPractice') {
@@ -7688,10 +7712,7 @@ function resetQuiz() {
 
 // ==================== 취약점 관리 ====================
 function switchWeaknessTab(tab) {
-  document.querySelectorAll('#page-weakness .tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('#page-weakness .tab-content').forEach(t => t.classList.remove('active'));
-  event.target.classList.add('active');
-  document.getElementById('weaknessTab-' + tab).classList.add('active');
+  setActiveTab('#page-weakness', tab);
 
   if (tab === 'list') renderWeaknessList();
   if (tab === 'conceptView') renderWeaknessConceptCollection();
@@ -8548,10 +8569,7 @@ function deleteWeaknessQuiz(id) {
 
 // ==================== 모아보기 ====================
 function switchCollectionTab(tab) {
-  document.querySelectorAll('#page-collection .tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('#page-collection .tab-content').forEach(t => t.classList.remove('active'));
-  event.target.classList.add('active');
-  document.getElementById('collectionTab-' + tab).classList.add('active');
+  setActiveTab('#page-collection', tab);
 
   if (tab === 'concepts') renderCollectionConcepts();
   if (tab === 'quizzes') renderCollectionQuizzes();
@@ -9030,6 +9048,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // 모드 초기화
   const savedMode = localStorage.getItem('study_mode') || 'exam';
   switchMode(savedMode);
+  const initialPage = document.querySelector('.page.active')?.id.replace('page-', '') || 'home';
+  setActivePage(initialPage);
+  setActiveTab('#page-weakness', 'list');
+  setActiveTab('#page-collection', 'concepts');
 
   if (APP_STATE.apiKey) {
     document.getElementById('apiKeyInput').value = APP_STATE.apiKey;
