@@ -616,7 +616,7 @@ body.mode-ncs .cs-only { display: none !important; }
 
 <!-- 메인 -->
 <div class="main">
-<div id="appVersion" style="position:fixed; top:8px; right:16px; z-index:9999; font-size:11px; color:var(--c-text-muted); background:var(--c-bg-card); padding:2px 10px; border-radius:12px; border:1px solid var(--c-border); opacity:0.7;">v2.10.3</div>
+<div id="appVersion" style="position:fixed; top:8px; right:16px; z-index:9999; font-size:11px; color:var(--c-text-muted); background:var(--c-bg-card); padding:2px 10px; border-radius:12px; border:1px solid var(--c-border); opacity:0.7;">v2.10.4</div>
 
   <!-- ===== 홈/대시보드 ===== -->
   <div class="page active" id="page-home">
@@ -1314,7 +1314,7 @@ function initFirebase(config) {
     document.getElementById('syncControlSection').style.display = '';
     firebaseAuth.onAuthStateChanged(user => {
       updateSyncUI(user);
-      if (user && autoSyncEnabled) {
+      if (user) {
         syncFromCloud(true);
       }
     });
@@ -1417,7 +1417,7 @@ async function saveLargeData(userDoc, key, data) {
   if (existing.docs.length > 0) await batch1.commit();
 
   // 청크 단위로 저장
-  const chunks = chunkArray(data, 50);
+  const chunks = chunkArray(Array.isArray(data) ? data : [], 50);
   for (let i = 0; i < chunks.length; i++) {
     await subCol.doc(`chunk_${i}`).set({ items: chunks[i], index: i, total: chunks.length });
   }
@@ -1517,9 +1517,7 @@ async function syncToCloud(silent = false) {
     ];
 
     for (const [key, arr] of largeFields) {
-      if (arr && arr.length > 0) {
-        await saveLargeData(userDoc, key, arr);
-      }
+      await saveLargeData(userDoc, key, arr);
     }
 
     localStorage.setItem('last_sync_time', Date.now().toString());
@@ -1549,6 +1547,7 @@ async function syncFromCloud(silent = false) {
       return;
     }
     const data = doc.data();
+    const hasCloudField = key => Object.prototype.hasOwnProperty.call(data, key);
 
     const localTime = parseInt(localStorage.getItem('last_sync_time') || '0');
     const cloudTime = data.updatedAt || 0;
@@ -1558,44 +1557,44 @@ async function syncFromCloud(silent = false) {
     }
 
     // 메인 문서에서 소용량 데이터 복원
-    if (data.subjects?.length) APP_STATE.subjects = data.subjects;
-    if (data.subTopics) APP_STATE.subTopics = data.subTopics;
-    if (data.majorCategoryMap) APP_STATE.majorCategoryMap = data.majorCategoryMap;
-    if (data.weaknesses) APP_STATE.weaknesses = data.weaknesses;
-    if (data.quizHistory) APP_STATE.quizHistory = data.quizHistory;
-    if (data.analysisData) APP_STATE.analysisData = data.analysisData;
-    if (data.previousQuestions) APP_STATE.previousQuestions = data.previousQuestions;
-    if (data.uploadCount) localStorage.setItem('upload_count', data.uploadCount);
+    if (hasCloudField('subjects')) APP_STATE.subjects = data.subjects || [];
+    if (hasCloudField('subTopics')) APP_STATE.subTopics = data.subTopics || {};
+    if (hasCloudField('majorCategoryMap')) APP_STATE.majorCategoryMap = data.majorCategoryMap || {};
+    if (hasCloudField('weaknesses')) APP_STATE.weaknesses = data.weaknesses || [];
+    if (hasCloudField('quizHistory')) APP_STATE.quizHistory = data.quizHistory || [];
+    if (hasCloudField('analysisData')) APP_STATE.analysisData = data.analysisData || null;
+    if (hasCloudField('previousQuestions')) APP_STATE.previousQuestions = data.previousQuestions || [];
+    if (hasCloudField('uploadCount')) localStorage.setItem('upload_count', String(data.uploadCount || '0'));
     // CS
-    if (data.cs_subjects?.length) CS_STATE.subjects = data.cs_subjects;
-    if (data.cs_subTopics) CS_STATE.subTopics = data.cs_subTopics;
-    if (data.cs_majorCategoryMap) CS_STATE.majorCategoryMap = data.cs_majorCategoryMap;
-    if (data.cs_weaknesses) CS_STATE.weaknesses = data.cs_weaknesses;
-    if (data.cs_quizHistory) CS_STATE.quizHistory = data.cs_quizHistory;
-    if (data.cs_previousQuestions) CS_STATE.previousQuestions = data.cs_previousQuestions;
+    if (hasCloudField('cs_subjects')) CS_STATE.subjects = data.cs_subjects || [];
+    if (hasCloudField('cs_subTopics')) CS_STATE.subTopics = data.cs_subTopics || {};
+    if (hasCloudField('cs_majorCategoryMap')) CS_STATE.majorCategoryMap = data.cs_majorCategoryMap || {};
+    if (hasCloudField('cs_weaknesses')) CS_STATE.weaknesses = data.cs_weaknesses || [];
+    if (hasCloudField('cs_quizHistory')) CS_STATE.quizHistory = data.cs_quizHistory || [];
+    if (hasCloudField('cs_previousQuestions')) CS_STATE.previousQuestions = data.cs_previousQuestions || [];
     // NCS
-    if (data.ncs_subjects?.length) NCS_STATE.subjects = data.ncs_subjects;
-    if (data.ncs_subTopics) NCS_STATE.subTopics = data.ncs_subTopics;
-    if (data.ncs_analysisData) NCS_STATE.analysisData = data.ncs_analysisData;
-    if (data.ncs_majorCategoryMap) NCS_STATE.majorCategoryMap = data.ncs_majorCategoryMap;
-    if (data.ncs_weaknesses) NCS_STATE.weaknesses = data.ncs_weaknesses;
-    if (data.ncs_quizHistory) NCS_STATE.quizHistory = data.ncs_quizHistory;
-    if (data.ncs_previousQuestions) NCS_STATE.previousQuestions = data.ncs_previousQuestions;
-    if (data.ncs_uploadCount) localStorage.setItem('ncs_upload_count', data.ncs_uploadCount);
+    if (hasCloudField('ncs_subjects')) NCS_STATE.subjects = data.ncs_subjects || [];
+    if (hasCloudField('ncs_subTopics')) NCS_STATE.subTopics = data.ncs_subTopics || {};
+    if (hasCloudField('ncs_analysisData')) NCS_STATE.analysisData = data.ncs_analysisData || null;
+    if (hasCloudField('ncs_majorCategoryMap')) NCS_STATE.majorCategoryMap = data.ncs_majorCategoryMap || {};
+    if (hasCloudField('ncs_weaknesses')) NCS_STATE.weaknesses = data.ncs_weaknesses || [];
+    if (hasCloudField('ncs_quizHistory')) NCS_STATE.quizHistory = data.ncs_quizHistory || [];
+    if (hasCloudField('ncs_previousQuestions')) NCS_STATE.previousQuestions = data.ncs_previousQuestions || [];
+    if (hasCloudField('ncs_uploadCount')) localStorage.setItem('ncs_upload_count', String(data.ncs_uploadCount || '0'));
     // General
-    if (data.general_subjects?.length) GENERAL_STATE.subjects = data.general_subjects;
-    if (data.general_subTopics) GENERAL_STATE.subTopics = data.general_subTopics;
-    if (data.general_analysisData) GENERAL_STATE.analysisData = data.general_analysisData;
-    if (data.general_majorCategoryMap) GENERAL_STATE.majorCategoryMap = data.general_majorCategoryMap;
-    if (data.general_weaknesses) GENERAL_STATE.weaknesses = data.general_weaknesses;
-    if (data.general_quizHistory) GENERAL_STATE.quizHistory = data.general_quizHistory;
-    if (data.general_previousQuestions) GENERAL_STATE.previousQuestions = data.general_previousQuestions;
-    if (data.general_uploadCount) localStorage.setItem('general_upload_count', data.general_uploadCount);
-    if (data.general_answerSheets) GENERAL_STATE.answerSheets = data.general_answerSheets;
-    if (data.wrongNotes) APP_STATE.wrongNotes = data.wrongNotes;
-    if (data.cs_wrongNotes) CS_STATE.wrongNotes = data.cs_wrongNotes;
-    if (data.ncs_wrongNotes) NCS_STATE.wrongNotes = data.ncs_wrongNotes;
-    if (data.general_wrongNotes) GENERAL_STATE.wrongNotes = data.general_wrongNotes;
+    if (hasCloudField('general_subjects')) GENERAL_STATE.subjects = data.general_subjects || [];
+    if (hasCloudField('general_subTopics')) GENERAL_STATE.subTopics = data.general_subTopics || {};
+    if (hasCloudField('general_analysisData')) GENERAL_STATE.analysisData = data.general_analysisData || null;
+    if (hasCloudField('general_majorCategoryMap')) GENERAL_STATE.majorCategoryMap = data.general_majorCategoryMap || {};
+    if (hasCloudField('general_weaknesses')) GENERAL_STATE.weaknesses = data.general_weaknesses || [];
+    if (hasCloudField('general_quizHistory')) GENERAL_STATE.quizHistory = data.general_quizHistory || [];
+    if (hasCloudField('general_previousQuestions')) GENERAL_STATE.previousQuestions = data.general_previousQuestions || [];
+    if (hasCloudField('general_uploadCount')) localStorage.setItem('general_upload_count', String(data.general_uploadCount || '0'));
+    if (hasCloudField('general_answerSheets')) GENERAL_STATE.answerSheets = data.general_answerSheets || [];
+    if (hasCloudField('wrongNotes')) APP_STATE.wrongNotes = data.wrongNotes || [];
+    if (hasCloudField('cs_wrongNotes')) CS_STATE.wrongNotes = data.cs_wrongNotes || [];
+    if (hasCloudField('ncs_wrongNotes')) NCS_STATE.wrongNotes = data.ncs_wrongNotes || [];
+    if (hasCloudField('general_wrongNotes')) GENERAL_STATE.wrongNotes = data.general_wrongNotes || [];
 
     // 대용량 데이터를 subcollection에서 복원 (v2 형식)
     if (data.version >= 2) {
@@ -1623,26 +1622,24 @@ async function syncFromCloud(silent = false) {
 
       for (const [key, stateObj, field] of largeFieldMap) {
         const loaded = await loadLargeData(userDoc, key);
-        if (loaded && loaded.length > 0) {
-          stateObj[field] = loaded;
-        }
+        stateObj[field] = Array.isArray(loaded) ? loaded : [];
       }
     } else {
       // v1 형식 호환 (기존 단일 문서에서 읽기)
-      if (data.extractedQuestions) APP_STATE.extractedQuestions = data.extractedQuestions;
-      if (data.concepts) APP_STATE.concepts = data.concepts;
-      if (data.weaknessConcepts) APP_STATE.weaknessConcepts = data.weaknessConcepts;
-      if (data.weaknessQuizzes) APP_STATE.weaknessQuizzes = data.weaknessQuizzes;
-      if (data.generatedQuizzes) APP_STATE.generatedQuizzes = data.generatedQuizzes;
-      if (data.cs_concepts) CS_STATE.concepts = data.cs_concepts;
-      if (data.cs_weaknessConcepts) CS_STATE.weaknessConcepts = data.cs_weaknessConcepts;
-      if (data.cs_weaknessQuizzes) CS_STATE.weaknessQuizzes = data.cs_weaknessQuizzes;
-      if (data.cs_generatedQuizzes) CS_STATE.generatedQuizzes = data.cs_generatedQuizzes;
-      if (data.ncs_extractedQuestions) NCS_STATE.extractedQuestions = data.ncs_extractedQuestions;
-      if (data.ncs_concepts) NCS_STATE.concepts = data.ncs_concepts;
-      if (data.ncs_weaknessConcepts) NCS_STATE.weaknessConcepts = data.ncs_weaknessConcepts;
-      if (data.ncs_weaknessQuizzes) NCS_STATE.weaknessQuizzes = data.ncs_weaknessQuizzes;
-      if (data.ncs_generatedQuizzes) NCS_STATE.generatedQuizzes = data.ncs_generatedQuizzes;
+      if (hasCloudField('extractedQuestions')) APP_STATE.extractedQuestions = data.extractedQuestions || [];
+      if (hasCloudField('concepts')) APP_STATE.concepts = data.concepts || [];
+      if (hasCloudField('weaknessConcepts')) APP_STATE.weaknessConcepts = data.weaknessConcepts || [];
+      if (hasCloudField('weaknessQuizzes')) APP_STATE.weaknessQuizzes = data.weaknessQuizzes || [];
+      if (hasCloudField('generatedQuizzes')) APP_STATE.generatedQuizzes = data.generatedQuizzes || [];
+      if (hasCloudField('cs_concepts')) CS_STATE.concepts = data.cs_concepts || [];
+      if (hasCloudField('cs_weaknessConcepts')) CS_STATE.weaknessConcepts = data.cs_weaknessConcepts || [];
+      if (hasCloudField('cs_weaknessQuizzes')) CS_STATE.weaknessQuizzes = data.cs_weaknessQuizzes || [];
+      if (hasCloudField('cs_generatedQuizzes')) CS_STATE.generatedQuizzes = data.cs_generatedQuizzes || [];
+      if (hasCloudField('ncs_extractedQuestions')) NCS_STATE.extractedQuestions = data.ncs_extractedQuestions || [];
+      if (hasCloudField('ncs_concepts')) NCS_STATE.concepts = data.ncs_concepts || [];
+      if (hasCloudField('ncs_weaknessConcepts')) NCS_STATE.weaknessConcepts = data.ncs_weaknessConcepts || [];
+      if (hasCloudField('ncs_weaknessQuizzes')) NCS_STATE.weaknessQuizzes = data.ncs_weaknessQuizzes || [];
+      if (hasCloudField('ncs_generatedQuizzes')) NCS_STATE.generatedQuizzes = data.ncs_generatedQuizzes || [];
     }
 
     saveState();
@@ -5172,7 +5169,14 @@ function expandConcept(id) {
 
 function openConceptViewPage(title, tag, markdownContent) {
   var html = formatMarkdown(markdownContent);
-  var tagHtml = tag ? '<span class="tag">' + tag + '</span>' : '';
+  function escapeHtml(value) {
+    return String(value || '').replace(/[&<>"']/g, function(ch) {
+      return ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'})[ch];
+    });
+  }
+  var safeTitle = escapeHtml(title);
+  var safeTag = escapeHtml(tag);
+  var tagHtml = tag ? '<span class="tag">' + safeTag + '</span>' : '';
   var isDark = document.documentElement.getAttribute('data-theme') !== 'light';
   var bg = isDark ? '#0f172a' : '#f8fafc';
   var cardBg = isDark ? '#1e293b' : '#ffffff';
@@ -5186,15 +5190,19 @@ function openConceptViewPage(title, tag, markdownContent) {
 
   var pageHtml = '<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">'
     + '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
-    + '<title>' + title + ' - 개념 정리</title>'
+    + '<title>' + safeTitle + ' - 개념 정리</title>'
     + '<style>'
     + '* { margin:0; padding:0; box-sizing:border-box; }'
     + 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", sans-serif; background:' + bg + '; color:' + textColor + '; }'
     + '.topbar { position:sticky; top:0; z-index:10; background:' + cardBg + '; border-bottom:1px solid ' + borderColor + '; padding:16px 40px; display:flex; align-items:center; gap:16px; box-shadow:0 2px 8px rgba(0,0,0,0.15); }'
-    + '.topbar h1 { font-size:20px; font-weight:700; }'
+    + '.topbar h1 { font-size:20px; font-weight:700; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }'
     + '.topbar .tag { padding:4px 12px; border-radius:4px; font-size:11px; font-weight:700; background:rgba(129,140,248,0.15); color:' + primaryColor + '; text-transform:uppercase; }'
-    + '.topbar .close-btn { margin-left:auto; padding:8px 20px; border:none; border-radius:6px; background:' + hoverBg + '; color:' + textColor + '; font-size:13px; font-weight:600; cursor:pointer; }'
-    + '.topbar .close-btn:hover { opacity:0.8; }'
+    + '.topbar .actions { margin-left:auto; display:flex; align-items:center; gap:8px; flex-shrink:0; }'
+    + '.topbar button { padding:8px 16px; border:none; border-radius:6px; color:' + textColor + '; font-size:13px; font-weight:600; cursor:pointer; }'
+    + '.topbar button:hover { opacity:0.85; }'
+    + '.pdf-btn { background:' + primaryColor + '; color:#fff !important; }'
+    + '.close-btn { background:' + hoverBg + '; }'
+    + '.print-cover { display:none; }'
     + '.content { max-width:860px; margin:0 auto; padding:40px; line-height:2.0; font-size:15px; }'
     + 'h1,h2,h3 { color:' + primaryColor + '; margin-top:28px; margin-bottom:14px; }'
     + 'h1 { font-size:24px; border-bottom:2px solid ' + borderColor + '; padding-bottom:12px; }'
@@ -5211,12 +5219,23 @@ function openConceptViewPage(title, tag, markdownContent) {
     + 'td { font-size:14px; }'
     + 'blockquote { border-left:3px solid ' + primaryColor + '; padding:12px 20px; background:rgba(129,140,248,0.08); margin:16px 0; border-radius:0 8px 8px 0; }'
     + '::-webkit-scrollbar { width:6px; } ::-webkit-scrollbar-track { background:' + bg + '; } ::-webkit-scrollbar-thumb { background:' + borderColor + '; border-radius:3px; }'
-    + '@media(max-width:768px){.topbar{padding:12px 16px;}.topbar h1{font-size:16px;}.content{padding:20px 16px;font-size:14px;}h1{font-size:20px;}h2{font-size:17px;}h3{font-size:15px;}table{display:block;overflow-x:auto;}th,td{padding:8px;white-space:nowrap;font-size:12px;}}'
+    + '@media(max-width:768px){.topbar{padding:12px 16px;gap:10px;}.topbar h1{font-size:16px;}.topbar button{padding:7px 10px;font-size:12px;}.content{padding:20px 16px;font-size:14px;}h1{font-size:20px;}h2{font-size:17px;}h3{font-size:15px;}table{display:block;overflow-x:auto;}th,td{padding:8px;white-space:nowrap;font-size:12px;}}'
+    + '@media print{@page{margin:14mm;}body{background:#fff!important;color:#111!important;}.topbar{display:none!important;}.print-cover{display:block;border-bottom:2px solid #d1d5db;margin:0 0 18px;padding:0 0 12px;}.print-cover h1{color:#111!important;border:0;margin:0 0 6px;padding:0;font-size:22px;}.print-cover .meta{color:#555;font-size:12px;}.content{max-width:none;padding:0;font-size:12.5pt;line-height:1.65;}h1,h2,h3{color:#111!important;break-after:avoid;}h1{font-size:20pt;border-bottom:1px solid #d1d5db;}h2{font-size:16pt;}h3{font-size:13.5pt;}p,li,blockquote,table{break-inside:avoid;}a{color:#111;text-decoration:none;}strong{color:#111!important;}code,pre{background:#f3f4f6!important;color:#111!important;border-color:#d1d5db!important;}blockquote{background:#f8fafc!important;border-left-color:#9ca3af!important;}th{background:#f3f4f6!important;color:#111!important;}th,td{border-color:#d1d5db!important;}}'
     + '</style></head><body>'
-    + '<div class="topbar"><h1>' + title + '</h1>' + tagHtml
-    + '<button class="close-btn" onclick="window.close()">✕ 닫기</button></div>'
+    + '<div class="topbar"><h1>' + safeTitle + '</h1>' + tagHtml
+    + '<div class="actions"><button class="pdf-btn" onclick="saveConceptPdf()">PDF로 저장</button><button class="close-btn" onclick="window.close()">닫기</button></div></div>'
+    + '<div class="print-cover"><h1>' + safeTitle + '</h1><div class="meta">' + safeTag + '</div></div>'
     + '<div class="content">' + html + '</div>'
-    + '</body></html>';
+    + '<script>'
+    + 'var baseTitle = ' + JSON.stringify(title + ' - 개념 정리') + ';'
+    + 'function sanitizeFileName(value) { return String(value || "개념 정리").replace(/[\\\\/:*?"<>|]/g, " ").replace(/\\s+/g, " ").trim(); }'
+    + 'function saveConceptPdf() {'
+    + '  var prevTitle = document.title;'
+    + '  document.title = sanitizeFileName(baseTitle);'
+    + '  window.print();'
+    + '  setTimeout(function() { document.title = prevTitle; }, 500);'
+    + '}'
+    + '<\/script></body></html>';
   var newTab = window.open('', '_blank');
   if (!newTab) { showToast('팝업이 차단되었습니다. 팝업 허용 후 다시 시도하세요.', 'error'); return; }
   newTab.document.write(pageHtml);
@@ -5287,7 +5306,7 @@ function openTabbedConceptViewPage(title, subject, subTopicContents) {
   }).join('');
 
   var contentsHtml = subTopicContents.map(function(item, idx) {
-    return '<div class="concept-tab-content" id="ctab-' + idx + '" style="' + (idx === 0 ? '' : 'display:none;') + '">' + buildJumpNav(item, idx) + formatMarkdown(item.content) + '</div>';
+    return '<div class="concept-tab-content' + (idx === 0 ? ' active-print' : '') + '" id="ctab-' + idx + '" style="' + (idx === 0 ? '' : 'display:none;') + '"><h1 class="print-tab-title">' + escapeHtml(getTabTitle(item)) + '</h1>' + buildJumpNav(item, idx) + formatMarkdown(item.content) + '</div>';
   }).join('');
 
   var safeTitle = escapeHtml(title);
@@ -5299,9 +5318,18 @@ function openTabbedConceptViewPage(title, subject, subTopicContents) {
     + '* { margin:0; padding:0; box-sizing:border-box; }'
     + 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", sans-serif; background:' + bg + '; color:' + textColor + '; }'
     + '.topbar { position:sticky; top:0; z-index:10; background:' + cardBg + '; border-bottom:1px solid ' + borderColor + '; padding:16px 40px; display:flex; align-items:center; gap:16px; box-shadow:0 2px 8px rgba(0,0,0,0.15); }'
-    + '.topbar h1 { font-size:20px; font-weight:700; }'
+    + '.topbar h1 { font-size:20px; font-weight:700; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }'
     + '.topbar .tag { padding:4px 12px; border-radius:4px; font-size:11px; font-weight:700; background:rgba(129,140,248,0.15); color:' + primaryColor + '; }'
-    + '.topbar .close-btn { margin-left:auto; padding:8px 20px; border:none; border-radius:6px; background:' + hoverBg + '; color:' + textColor + '; font-size:13px; font-weight:600; cursor:pointer; }'
+    + '.topbar .actions { margin-left:auto; display:flex; align-items:center; gap:8px; flex-shrink:0; position:relative; }'
+    + '.topbar button { padding:8px 16px; border:none; border-radius:6px; color:' + textColor + '; font-size:13px; font-weight:600; cursor:pointer; }'
+    + '.topbar button:hover { opacity:0.85; }'
+    + '.pdf-btn { background:' + primaryColor + '; color:#fff !important; }'
+    + '.close-btn { background:' + hoverBg + '; }'
+    + '.pdf-menu { display:none; position:absolute; right:72px; top:42px; min-width:170px; padding:6px; border:1px solid ' + borderColor + '; border-radius:8px; background:' + cardBg + '; box-shadow:0 12px 28px rgba(0,0,0,0.28); z-index:20; }'
+    + '.pdf-menu.show { display:block; }'
+    + '.pdf-menu button { display:block; width:100%; padding:9px 12px; background:transparent; text-align:left; color:' + textColor + '; }'
+    + '.pdf-menu button:hover { background:' + hoverBg + '; opacity:1; }'
+    + '.print-cover,.print-tab-title { display:none; }'
     + '.concept-tabs { display:flex; gap:0; border-bottom:2px solid ' + borderColor + '; background:' + cardBg + '; padding:0 40px; overflow-x:auto; position:sticky; top:56px; z-index:9; }'
     + '.concept-tab { padding:12px 20px; cursor:pointer; color:' + mutedColor + '; border-bottom:2px solid transparent; font-size:14px; font-weight:600; margin-bottom:-2px; white-space:nowrap; transition:all 0.2s; }'
     + '.concept-tab:hover { color:' + textColor + '; }'
@@ -5328,17 +5356,34 @@ function openTabbedConceptViewPage(title, subject, subTopicContents) {
     + 'td { font-size:14px; }'
     + 'blockquote { border-left:3px solid ' + primaryColor + '; padding:12px 20px; background:rgba(129,140,248,0.08); margin:16px 0; border-radius:0 8px 8px 0; }'
     + '::-webkit-scrollbar { width:6px; } ::-webkit-scrollbar-track { background:' + bg + '; } ::-webkit-scrollbar-thumb { background:' + borderColor + '; border-radius:3px; }'
-    + '@media(max-width:768px){.topbar{padding:12px 16px;}.topbar h1{font-size:16px;}.concept-tabs{padding:0 12px;}.concept-tab{padding:10px 14px;font-size:13px;}.content{padding:20px 16px;font-size:14px;}.subtopic-jump-buttons button{max-width:100%;}h1{font-size:20px;}h2{font-size:17px;}h3{font-size:15px;}table{display:block;overflow-x:auto;}th,td{padding:8px;white-space:nowrap;font-size:12px;}}'
+    + '@media(max-width:768px){.topbar{padding:12px 16px;gap:10px;}.topbar h1{font-size:16px;}.topbar button{padding:7px 10px;font-size:12px;}.pdf-menu{right:54px;top:36px;}.concept-tabs{padding:0 12px;}.concept-tab{padding:10px 14px;font-size:13px;}.content{padding:20px 16px;font-size:14px;}.subtopic-jump-buttons button{max-width:100%;}h1{font-size:20px;}h2{font-size:17px;}h3{font-size:15px;}table{display:block;overflow-x:auto;}th,td{padding:8px;white-space:nowrap;font-size:12px;}}'
+    + '@media print{@page{margin:14mm;}body{background:#fff!important;color:#111!important;}.topbar,.concept-tabs,.subtopic-jump-nav{display:none!important;}.print-cover{display:block;border-bottom:2px solid #d1d5db;margin:0 0 18px;padding:0 0 12px;}.print-cover h1{color:#111!important;border:0;margin:0 0 6px;padding:0;font-size:22px;}.print-cover .meta{color:#555;font-size:12px;}.content{max-width:none;padding:0;font-size:12.5pt;line-height:1.65;}body.print-all .concept-tab-content{display:block!important;break-before:page;}body.print-all .concept-tab-content:first-child{break-before:auto;}body.print-current .concept-tab-content{display:none!important;}body.print-current .concept-tab-content.active-print{display:block!important;}.print-tab-title{display:block!important;color:#111!important;border-bottom:1px solid #d1d5db;margin:0 0 16px;padding:0 0 8px;font-size:20pt;}h1,h2,h3{color:#111!important;break-after:avoid;}h1{font-size:20pt;border-bottom:1px solid #d1d5db;}h2{font-size:16pt;}h3{font-size:13.5pt;}p,li,blockquote,table{break-inside:avoid;}a{color:#111;text-decoration:none;}strong{color:#111!important;}code,pre{background:#f3f4f6!important;color:#111!important;border-color:#d1d5db!important;}blockquote{background:#f8fafc!important;border-left-color:#9ca3af!important;}th{background:#f3f4f6!important;color:#111!important;}th,td{border-color:#d1d5db!important;}}'
     + '</style></head><body>'
     + '<div class="topbar"><h1>' + safeTitle + '</h1><span class="tag">' + safeSubject + '</span>'
-    + '<button class="close-btn" onclick="window.close()">✕ 닫기</button></div>'
+    + '<div class="actions"><button class="pdf-btn" onclick="togglePdfMenu()">PDF로 저장</button><div class="pdf-menu" id="pdfMenu"><button onclick="saveConceptPdf(\'current\')">현재 탭만 저장</button><button onclick="saveConceptPdf(\'all\')">전체 탭 저장</button></div><button class="close-btn" onclick="window.close()">닫기</button></div></div>'
+    + '<div class="print-cover"><h1>' + safeTitle + '</h1><div class="meta">' + safeSubject + '</div></div>'
     + '<div class="concept-tabs">' + tabsHtml + '</div>'
     + '<div class="content">' + contentsHtml + '</div>'
     + '<script>'
     + 'function switchConceptTab(idx) {'
     + '  document.querySelectorAll(".concept-tab").forEach(function(t,i) { t.classList.toggle("active", i===idx); });'
     + '  document.querySelectorAll(".concept-tab-content").forEach(function(c,i) { c.style.display = i===idx ? "" : "none"; });'
+    + '  document.querySelectorAll(".concept-tab-content").forEach(function(c,i) { c.classList.toggle("active-print", i===idx); });'
     + '  window.scrollTo(0, 0);'
+    + '}'
+    + 'var baseTitle = ' + JSON.stringify(title) + ';'
+    + 'function sanitizeFileName(value) { return String(value || "개념 정리").replace(/[\\\\/:*?"<>|]/g, " ").replace(/\\s+/g, " ").trim(); }'
+    + 'function getActiveTabTitle() { var active = document.querySelector(".concept-tab.active"); return active ? active.textContent.trim() : "현재 탭"; }'
+    + 'function togglePdfMenu() { document.getElementById("pdfMenu").classList.toggle("show"); }'
+    + 'function saveConceptPdf(scope) {'
+    + '  var menu = document.getElementById("pdfMenu");'
+    + '  if (menu) menu.classList.remove("show");'
+    + '  document.body.classList.remove("print-current", "print-all");'
+    + '  document.body.classList.add(scope === "all" ? "print-all" : "print-current");'
+    + '  var prevTitle = document.title;'
+    + '  document.title = sanitizeFileName(baseTitle + " - " + (scope === "all" ? "전체 탭" : getActiveTabTitle()));'
+    + '  window.print();'
+    + '  setTimeout(function() { document.title = prevTitle; document.body.classList.remove("print-current", "print-all"); }, 500);'
     + '}'
     + 'function normalizeTopicText(text) { return String(text || "").replace(/\\s+/g, "").toLowerCase(); }'
     + 'function scrollToSubTopic(tabIdx, label) {'
@@ -5356,6 +5401,8 @@ function openTabbedConceptViewPage(title, subject, subTopicContents) {
     + '  tab.scrollIntoView({behavior:"smooth", block:"start"});'
     + '}'
     + 'document.addEventListener("click", function(e) {'
+    + '  var menu = document.getElementById("pdfMenu");'
+    + '  if (menu && !e.target.closest(".actions")) menu.classList.remove("show");'
     + '  var btn = e.target.closest(".subtopic-jump-buttons button");'
     + '  if (!btn) return;'
     + '  scrollToSubTopic(btn.getAttribute("data-tab-idx"), btn.getAttribute("data-topic"));'
