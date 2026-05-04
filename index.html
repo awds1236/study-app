@@ -2909,6 +2909,8 @@ let firebaseAuth = null;
 let firebaseDb = null;
 let autoSyncEnabled = localStorage.getItem('auto_sync') !== 'false';
 let isSyncing = false;
+let cloudUnsubscribe = null;
+let lastAppliedCloudTime = 0;
 
 // NCS 기본 과목
 const NCS_DEFAULT_SUBJECTS = ['의사소통능력', '수리능력', '문제해결능력', '자원관리능력', '정보능력', '조직이해능력', '자기개발능력', '직업윤리', '기술능력', '대인관계능력'];
@@ -2955,6 +2957,10 @@ function applyFirebaseConfig() {
 function resetFirebaseConfig() {
   if (!confirm('Firebase 설정을 초기화하시겠습니까?')) return;
   if (firebaseAuth) firebaseAuth.signOut();
+  if (cloudUnsubscribe) {
+    cloudUnsubscribe();
+    cloudUnsubscribe = null;
+  }
   localStorage.removeItem('firebase_config');
   firebaseApp = null; firebaseAuth = null; firebaseDb = null;
   document.getElementById('firebaseConfigSection').style.display = '';
@@ -2976,7 +2982,10 @@ function initFirebase(config) {
     firebaseAuth.onAuthStateChanged(user => {
       updateSyncUI(user);
       if (user) {
-        syncFromCloud(true);
+        startCloudSyncListener(user);
+      } else if (cloudUnsubscribe) {
+        cloudUnsubscribe();
+        cloudUnsubscribe = null;
       }
     });
   } catch (e) {
@@ -3059,6 +3068,28 @@ function setSyncingUI(syncing) {
   }
 }
 
+function startCloudSyncListener(user) {
+  if (!firebaseDb || !user) return;
+  if (cloudUnsubscribe) {
+    cloudUnsubscribe();
+    cloudUnsubscribe = null;
+  }
+
+  const userDoc = firebaseDb.collection('users').doc(user.uid);
+  cloudUnsubscribe = userDoc.onSnapshot(doc => {
+    if (!autoSyncEnabled || !doc.exists || isSyncing) return;
+    if (doc.metadata?.hasPendingWrites) return;
+
+    const data = doc.data() || {};
+    const cloudTime = data.updatedAt || 0;
+    if (cloudTime > 0 && cloudTime <= lastAppliedCloudTime) return;
+
+    syncFromCloud(true, doc);
+  }, e => {
+    console.warn('클라우드 실시간 동기화 실패:', e);
+  });
+}
+
 // 대용량 배열을 청크로 분할 (Firestore 문서 1MB 제한 대응)
 function chunkArray(arr, chunkSize = 50) {
   const chunks = [];
@@ -3108,6 +3139,7 @@ async function syncToCloud(silent = false) {
   try {
     const uid = firebaseAuth.currentUser.uid;
     const userDoc = firebaseDb.collection('users').doc(uid);
+    const syncTime = Date.now();
 
     // 소용량 데이터는 메인 문서에 저장
     const mainData = {
@@ -3149,12 +3181,11 @@ async function syncToCloud(silent = false) {
       cs_wrongNotes: CS_STATE.wrongNotes || [],
       ncs_wrongNotes: NCS_STATE.wrongNotes || [],
       general_wrongNotes: GENERAL_STATE.wrongNotes || [],
-      updatedAt: Date.now(),
+      updatedAt: syncTime,
       version: 2 // 분할 저장 버전 표시
     };
-    await userDoc.set(mainData, { merge: true });
 
-    // 대용량 데이터는 subcollection에 분할 저장
+    // 대용량 데이터를 먼저 저장한 뒤 메인 문서의 updatedAt을 올려야 다른 기기가 완성된 데이터만 읽습니다.
     const largeFields = [
       ['extractedQuestions', APP_STATE.extractedQuestions],
       ['concepts', APP_STATE.concepts],
@@ -3181,7 +3212,10 @@ async function syncToCloud(silent = false) {
       await saveLargeData(userDoc, key, arr);
     }
 
-    localStorage.setItem('last_sync_time', Date.now().toString());
+    await userDoc.set(mainData, { merge: true });
+
+    lastAppliedCloudTime = syncTime;
+    localStorage.setItem('last_sync_time', syncTime.toString());
     if (!silent) showToast('클라우드에 저장되었습니다!', 'success');
   } catch (e) {
     if (!silent) showToast('동기화 실패: ' + e.message, 'error');
@@ -3191,7 +3225,7 @@ async function syncToCloud(silent = false) {
   }
 }
 
-async function syncFromCloud(silent = false) {
+async function syncFromCloud(silent = false, sourceDoc = null) {
   if (!firebaseDb || !firebaseAuth?.currentUser) {
     if (!silent) showToast('로그인이 필요합니다.', 'error');
     return;
@@ -3202,7 +3236,7 @@ async function syncFromCloud(silent = false) {
   try {
     const uid = firebaseAuth.currentUser.uid;
     const userDoc = firebaseDb.collection('users').doc(uid);
-    const doc = await userDoc.get();
+    const doc = sourceDoc || await userDoc.get();
     if (!doc.exists) {
       if (!silent) showToast('클라우드에 저장된 데이터가 없습니다. 먼저 저장해주세요.', 'info');
       return;
@@ -3216,6 +3250,7 @@ async function syncFromCloud(silent = false) {
     if (!silent && localTime > 0 && cloudTime < localTime) {
       if (!confirm('로컬 데이터가 더 최신입니다. 클라우드 데이터로 덮어쓰시겠습니까?')) return;
     }
+    if (silent && cloudTime > 0 && cloudTime <= lastAppliedCloudTime) return;
 
     // 메인 문서에서 소용량 데이터 복원
     if (hasCloudField('subjects')) APP_STATE.subjects = data.subjects || [];
@@ -3310,7 +3345,9 @@ async function syncFromCloud(silent = false) {
     initExamPractice();
     updateDashboard();
     if (getState().analysisData) renderAnalysisResult(getState().analysisData);
-    localStorage.setItem('last_sync_time', Date.now().toString());
+    const appliedTime = cloudTime || Date.now();
+    lastAppliedCloudTime = Math.max(lastAppliedCloudTime, appliedTime);
+    localStorage.setItem('last_sync_time', appliedTime.toString());
     if (!silent) showToast('클라우드에서 데이터를 불러왔습니다!', 'success');
   } catch (e) {
     if (!silent) showToast('불러오기 실패: ' + e.message, 'error');
@@ -3323,6 +3360,9 @@ async function syncFromCloud(silent = false) {
 function toggleAutoSync() {
   autoSyncEnabled = document.getElementById('autoSyncToggle').checked;
   localStorage.setItem('auto_sync', autoSyncEnabled);
+  if (autoSyncEnabled && firebaseAuth?.currentUser) {
+    syncFromCloud(true);
+  }
   showToast(autoSyncEnabled ? '자동 동기화가 켜졌습니다.' : '자동 동기화가 꺼졌습니다.', 'info');
 }
 
@@ -4044,6 +4084,12 @@ function showPage(id) {
   // 답안지 관리는 general 모드 전용
   if (id === 'answerSheet' && currentMode !== 'general') {
     id = 'home';
+  }
+
+  const currentPage = document.querySelector('.page.active');
+  if (currentPage?.id === 'page-concepts' && id !== 'concepts') {
+    const conceptResult = document.getElementById('conceptResult');
+    if (conceptResult) conceptResult.innerHTML = '';
   }
 
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
