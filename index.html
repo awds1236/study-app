@@ -271,8 +271,11 @@ body {
 
 /* ===== 메인 컨텐츠 ===== */
 .main { margin-left: var(--sidebar-w); padding: 28px 32px; min-height: 100vh; }
-.page { display: none; }
-.page.active { display: block; }
+.page,
+.page[hidden],
+.tab-content[hidden] { display: none !important; }
+.page.active,
+.tab-content.active { display: block !important; }
 .page-title {
   font-size: 24px; font-weight: 700; margin-bottom: 4px;
   color: var(--c-text-base); letter-spacing: -0.3px;
@@ -2277,7 +2280,7 @@ body {
 
 <!-- 메인 -->
 <div class="main">
-<div id="appVersion" style="position:fixed; top:8px; right:16px; z-index:9999; font-size:11px; color:var(--c-text-muted); background:var(--c-bg-card); padding:2px 10px; border-radius:12px; border:1px solid var(--c-border); opacity:0.7;">v2.10.4</div>
+<div id="appVersion" style="position:fixed; top:8px; right:16px; z-index:9999; font-size:11px; color:var(--c-text-muted); background:var(--c-bg-card); padding:2px 10px; border-radius:12px; border:1px solid var(--c-border); opacity:0.7;">v2.10.5</div>
 
   <!-- ===== 홈/대시보드 ===== -->
   <div class="page active" id="page-home">
