@@ -466,6 +466,38 @@ body {
 .quiz-option.correct .num { background: var(--c-success); color: var(--color-on-primary); }
 .quiz-option.wrong .num { background: var(--c-danger); color: var(--color-on-primary); }
 
+/* ===== 시험 생성 UI ===== */
+.exam-subject-option {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; border: 1px solid var(--c-border);
+  border-radius: var(--c-radius); background: var(--c-bkg-body);
+  cursor: pointer; font-size: 13px; font-weight: 600;
+}
+.exam-subject-option input { width: 16px; height: 16px; accent-color: var(--c-primary); }
+.exam-subject-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 10px; margin: 0 6px 6px 0;
+  border-radius: var(--rounded-full); border: 1px solid var(--c-border);
+  background: var(--c-bkg-card); font-size: 13px; font-weight: 600;
+}
+.exam-subject-chip button {
+  border: 0; background: transparent; color: var(--c-danger);
+  cursor: pointer; font-size: 14px; line-height: 1;
+}
+.generated-exam-header {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 14px 16px; margin-bottom: 16px;
+  border: 1px solid var(--c-border); border-radius: var(--c-radius-lg);
+  background: var(--c-bkg-card);
+}
+.generated-exam-title { font-weight: 800; color: var(--c-text-base); }
+.generated-exam-meta { font-size: 13px; color: var(--c-text-muted); margin-top: 2px; }
+.generated-exam-question-number {
+  color: var(--c-primary); font-size: 13px; font-weight: 800;
+  margin-bottom: 10px;
+}
+
 /* ===== 해설 ===== */
 .explanation {
   margin-top: 16px; padding: 16px; background: var(--c-bkg-body);
@@ -2428,6 +2460,9 @@ body {
     <div class="nav-item" onclick="showPage('quiz')">
       <span class="icon">✏️</span><span>문제 풀기</span>
     </div>
+    <div class="nav-item" onclick="showPage('examBuilder')">
+      <span class="icon">🧾</span><span>시험 생성</span>
+    </div>
     <div class="nav-item" onclick="showPage('wrongNotes')">
       <span class="icon">📕</span><span>오답 노트</span>
       <span class="nav-badge" id="wrongNotesBadge" style="display:none">0</span>
@@ -2486,6 +2521,7 @@ body {
         <button class="btn btn-primary upload-nav" onclick="showPage('upload')">📄 문제 업로드</button>
         <button class="btn btn-primary" onclick="showPage('concepts')">📖 개념 정리</button>
         <button class="btn btn-success" onclick="showPage('quiz')">✏️ 문제 풀기</button>
+        <button class="btn btn-success" onclick="showPage('examBuilder')">🧾 시험 생성</button>
         <button class="btn btn-warning" onclick="showPage('weakness')">🎯 취약점 학습</button>
       </div>
     </div>
@@ -2799,6 +2835,79 @@ body {
       </div>
       <div id="quizExplanations" style="margin-top:20px;"></div>
     </div>
+  </div>
+
+  <!-- ===== 시험 생성 ===== -->
+  <div class="page" id="page-examBuilder">
+    <h1 class="page-title">시험 생성</h1>
+    <p class="page-desc">저장된 개념 정리 과목을 선택해 실제 시험지에 가까운 문제 세트를 생성합니다</p>
+
+    <div class="card" id="examBuilderSetup">
+      <div class="card-title">🧾 시험 설정</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">개념 정리에 저장된 과목</label>
+          <div id="examConceptSubjectPool" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:8px;"></div>
+          <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+            <button class="btn btn-sm btn-secondary" onclick="selectAllExamConceptSubjects()">전체 선택</button>
+            <button class="btn btn-sm btn-primary" onclick="addSelectedExamSubjects()">선택한 과목 넣기</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">시험 과목</label>
+          <div id="examSelectedSubjects" style="min-height:108px; padding:12px; border:1px solid var(--c-border); border-radius:var(--c-radius); background:var(--c-bkg-body);"></div>
+          <button class="btn btn-sm btn-danger" onclick="clearExamBuilderSubjects()" style="margin-top:10px;">시험 과목 비우기</button>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">문제 수</label>
+          <select class="select" id="examQuestionCount">
+            <option value="10">10문제</option>
+            <option value="20" selected>20문제</option>
+            <option value="25">25문제</option>
+            <option value="40">40문제</option>
+            <option value="50">50문제</option>
+            <option value="100">100문제</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">문제 수준</label>
+          <select class="select" id="examDifficulty">
+            <option value="기초">기초 확인형</option>
+            <option value="실전" selected>실전 시험 수준</option>
+            <option value="고난도">고난도 시험 수준</option>
+            <option value="랜덤">난이도 혼합</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">변형 수준</label>
+          <select class="select" id="examVariation">
+            <option value="1">1 - 원개념 중심</option>
+            <option value="2">2 - 약간 변형</option>
+            <option value="3" selected>3 - 기출형 변형</option>
+            <option value="4">4 - 복합 지문</option>
+            <option value="5">5 - 고난도 변형</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">시험 요청 사항 (선택)</label>
+        <input class="input" type="text" id="examExtraRequest" placeholder="예: 계산형 비중 높이기, 지문형 문제 많이 내기...">
+      </div>
+
+      <button class="btn btn-primary" onclick="generateConceptExam()">🧾 시험 생성</button>
+    </div>
+
+    <div class="loading" id="examBuilderLoading">
+      <div class="spinner"></div>
+      <span>실전 시험지를 생성하고 있습니다...</span>
+    </div>
+
+    <div id="generatedExamArea" style="display:none"></div>
+    <div id="generatedExamResult" style="display:none"></div>
   </div>
 
   <!-- ===== 오답 노트 ===== -->
@@ -3919,6 +4028,8 @@ function refreshAllSubjectSelectors() {
     sel.innerHTML = buildSubjectOptions(true);
     sel.value = currentVal;
   });
+
+  renderExamSubjectPool();
 }
 
 // ==================== 세부과목 관리 ====================
@@ -4310,6 +4421,10 @@ function showPage(id) {
   if (id === 'quiz') {
     refreshQuizSubTopicMulti();
   }
+  // 시험 생성 페이지 진입 시 저장된 개념 과목 목록 갱신
+  if (id === 'examBuilder') {
+    renderExamSubjectPool();
+  }
   // 오답 노트 페이지 진입 시 렌더링
   if (id === 'wrongNotes') {
     renderWrongNotes();
@@ -4318,7 +4433,7 @@ function showPage(id) {
   // 보이는 nav-item 중에서 active 설정
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const allNavItems = document.querySelectorAll('.nav-item');
-  const pages = ['home', 'upload', 'examPractice', 'answerSheet', 'concepts', 'quiz', 'wrongNotes', 'weakness', 'collection', 'settings'];
+  const pages = ['home', 'upload', 'examPractice', 'answerSheet', 'concepts', 'quiz', 'examBuilder', 'wrongNotes', 'weakness', 'collection', 'settings'];
   const idx = pages.indexOf(id);
   if (idx >= 0 && allNavItems[idx]) allNavItems[idx].classList.add('active');
   window.scrollTo(0, 0);
@@ -4382,6 +4497,7 @@ function switchMode(mode) {
   renderSubjectManager();
   renderSubTopicManager();
   renderSavedConcepts();
+  renderExamSubjectPool();
   updateDashboard();
 }
 
@@ -7843,6 +7959,422 @@ function submitQuiz() {
 
   saveState();
   updateDashboard();
+}
+
+let EXAM_BUILDER_SUBJECTS = [];
+
+function escapeHtmlText(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[ch]);
+}
+
+function getConceptExamSubjects() {
+  const blocked = new Set(['전체', '기출분석', '취약점']);
+  const subjects = [];
+  (getState().concepts || []).forEach(concept => {
+    if (concept.subject && !blocked.has(concept.subject)) subjects.push(concept.subject);
+    if (concept.subject === '전체' && concept.subTopicContents?.length > 0) {
+      concept.subTopicContents.forEach(tab => {
+        const subject = String(tab.subTopic || '').split('>')[0].trim();
+        if (subject && !blocked.has(subject)) subjects.push(subject);
+      });
+    }
+  });
+  return [...new Set(subjects)];
+}
+
+function renderExamSubjectPool() {
+  const container = document.getElementById('examConceptSubjectPool');
+  if (!container) return;
+
+  const subjects = getConceptExamSubjects();
+  EXAM_BUILDER_SUBJECTS = EXAM_BUILDER_SUBJECTS.filter(s => subjects.includes(s));
+
+  if (subjects.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state" style="grid-column:1/-1; padding:20px;">
+        <p>저장된 개념 정리 과목이 없습니다.</p>
+        <button class="btn btn-sm btn-primary" onclick="showPage('concepts')" style="margin-top:8px;">개념 정리 만들기</button>
+      </div>
+    `;
+    renderExamSelectedSubjects();
+    return;
+  }
+
+  container.innerHTML = subjects.map(subject => `
+    <label class="exam-subject-option">
+      <input type="checkbox" class="exam-concept-subject-cb" value="${escapeHtmlText(subject)}">
+      <span>${escapeHtmlText(subject)}</span>
+    </label>
+  `).join('');
+  renderExamSelectedSubjects();
+}
+
+function renderExamSelectedSubjects() {
+  const container = document.getElementById('examSelectedSubjects');
+  if (!container) return;
+
+  if (EXAM_BUILDER_SUBJECTS.length === 0) {
+    container.innerHTML = '<span style="color:var(--c-text-muted); font-size:13px;">시험에 넣을 과목을 선택하세요.</span>';
+    return;
+  }
+
+  container.innerHTML = EXAM_BUILDER_SUBJECTS.map((subject, i) => `
+    <span class="exam-subject-chip">
+      ${escapeHtmlText(subject)}
+      <button type="button" onclick="removeExamBuilderSubject(${i})" aria-label="과목 제거">&times;</button>
+    </span>
+  `).join('');
+}
+
+function selectAllExamConceptSubjects() {
+  document.querySelectorAll('.exam-concept-subject-cb').forEach(cb => { cb.checked = true; });
+}
+
+function addSelectedExamSubjects() {
+  const checked = [...document.querySelectorAll('.exam-concept-subject-cb:checked')].map(cb => cb.value);
+  if (checked.length === 0) {
+    showToast('시험에 넣을 과목을 선택하세요.', 'error');
+    return;
+  }
+  EXAM_BUILDER_SUBJECTS = [...new Set([...EXAM_BUILDER_SUBJECTS, ...checked])];
+  document.querySelectorAll('.exam-concept-subject-cb').forEach(cb => { cb.checked = false; });
+  renderExamSelectedSubjects();
+  showToast(`${checked.length}개 과목을 시험 과목에 넣었습니다.`, 'success');
+}
+
+function removeExamBuilderSubject(index) {
+  EXAM_BUILDER_SUBJECTS.splice(index, 1);
+  renderExamSelectedSubjects();
+}
+
+function clearExamBuilderSubjects() {
+  EXAM_BUILDER_SUBJECTS = [];
+  renderExamSelectedSubjects();
+}
+
+function stripPromptText(value) {
+  return String(value || '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function buildConceptExamContext(subjects) {
+  const blocks = [];
+  subjects.forEach(subject => {
+    const concepts = (getState().concepts || []).filter(c => c.subject === subject).slice(-4);
+    const tabsFromAllConcepts = [];
+    (getState().concepts || []).forEach(concept => {
+      if (concept.subject !== '전체' || !concept.subTopicContents?.length) return;
+      concept.subTopicContents.forEach(tab => {
+        const tabSubject = String(tab.subTopic || '').split('>')[0].trim();
+        if (tabSubject === subject) tabsFromAllConcepts.push(tab);
+      });
+    });
+    if (concepts.length === 0 && tabsFromAllConcepts.length === 0) return;
+
+    const conceptLines = concepts.map(concept => {
+      if (concept.subTopicContents?.length > 0) {
+        const tabs = concept.subTopicContents.slice(0, 4).map(tab => {
+          const title = tab.title || tab.subTopic || '세부 개념';
+          return `${title}: ${stripPromptText(tab.content).slice(0, 800)}`;
+        }).join('\n');
+        return `- ${concept.keyword || subject}\n${tabs}`;
+      }
+      return `- ${concept.keyword || subject}\n${stripPromptText(concept.content).slice(0, 1500)}`;
+    });
+    tabsFromAllConcepts.slice(-4).forEach(tab => {
+      const title = tab.subTopic || tab.title || subject;
+      conceptLines.push(`- ${title}\n${stripPromptText(tab.content).slice(0, 1000)}`);
+    });
+    blocks.push(`[${subject}]\n${conceptLines.join('\n')}`);
+  });
+  return blocks.join('\n\n').slice(0, 18000);
+}
+
+function getExamSubjectDistribution(subjects, count) {
+  const base = Math.floor(count / subjects.length);
+  const rest = count % subjects.length;
+  return subjects.map((subject, i) => `${subject}: ${base + (i < rest ? 1 : 0)}문제`).join('\n');
+}
+
+async function generateConceptExam() {
+  const subjects = [...EXAM_BUILDER_SUBJECTS];
+  const count = parseInt(document.getElementById('examQuestionCount').value, 10);
+  const difficulty = document.getElementById('examDifficulty').value;
+  const variation = parseInt(document.getElementById('examVariation').value, 10);
+  const extraRequest = document.getElementById('examExtraRequest').value.trim();
+
+  if (subjects.length === 0) {
+    showToast('시험에 넣을 과목을 먼저 선택하세요.', 'error');
+    return;
+  }
+
+  const conceptContext = buildConceptExamContext(subjects);
+  if (!conceptContext) {
+    showToast('선택한 과목의 개념 정리 내용을 찾을 수 없습니다.', 'error');
+    return;
+  }
+
+  const loading = document.getElementById('examBuilderLoading');
+  loading.classList.add('show');
+  document.getElementById('generatedExamArea').style.display = 'none';
+  document.getElementById('generatedExamResult').style.display = 'none';
+
+  const variationGuide = {
+    1: '저장된 개념의 핵심 정의와 기본 적용을 중심으로 출제하세요.',
+    2: '표현과 선택지를 약간 변형하되 핵심 개념은 직접 확인하세요.',
+    3: '실제 기출처럼 개념을 다른 사례와 보기로 바꾸어 출제하세요.',
+    4: '여러 개념을 연결한 지문형, 자료형, 상황형 문제를 충분히 섞으세요.',
+    5: '고난도 실전 변형처럼 낯선 지문, 복합 조건, 함정 선택지를 적극 활용하세요.'
+  };
+
+  const modeContext = currentMode === 'ncs'
+    ? '당신은 NCS 직업기초능력평가 출제위원입니다.'
+    : currentMode === 'general'
+      ? '당신은 한국 9급 공무원 국어/영어/한국사 시험 출제위원입니다.'
+      : '당신은 한국 9급 공무원 전산직 시험 출제위원입니다.';
+
+  const relatedQuestions = subjects.map(subject => getRelatedExamQuestions(subject, '', 4)).join('\n');
+
+  try {
+    const prompt = `${modeContext}
+저장된 개념 정리를 바탕으로 실제 시험과 최대한 동일한 환경의 4지선다 시험지를 생성하세요.
+
+시험 과목:
+${getExamSubjectDistribution(subjects, count)}
+
+문제 수: ${count}문제
+문제 수준: ${difficulty}
+변형 수준: ${variation}/5 - ${variationGuide[variation]}
+${extraRequest ? `추가 요청: ${extraRequest}` : ''}
+
+저장된 개념 정리 요약:
+${conceptContext}
+
+참고 가능한 기출 스타일:
+${relatedQuestions || '저장된 기출 참고 자료 없음'}
+
+출제 규칙:
+1. 모든 문제는 실제 시험 문제처럼 지문, 보기, 선택지의 문체와 길이를 맞추세요.
+2. 단순 암기형만 반복하지 말고 정의형, 사례형, 자료해석형, 코드/규칙 적용형, 비교형을 과목 성격에 맞게 섞으세요.
+3. 선택지는 실제 시험처럼 모두 그럴듯해야 하며, 정답은 하나만 명확해야 합니다.
+4. 선택한 과목별 문제 수 배분을 지키고, 각 문제의 subject 필드에 정확한 과목명을 넣으세요.
+5. 문제 풀이 중 정답이 드러나는 표현을 쓰지 마세요.
+6. 해설은 채점 후 학습용으로 충분히 자세하게 작성하세요.
+7. answer는 0부터 시작하는 선택지 인덱스로 작성하세요.
+
+반드시 다음 JSON 형식으로만 반환하세요 (마크다운 코드 블록 없이):
+{
+  "questions": [
+    {
+      "id": 1,
+      "subject": "과목명",
+      "question": "실제 시험 수준의 문제 지문",
+      "options": ["선택지1", "선택지2", "선택지3", "선택지4"],
+      "answer": 0,
+      "difficulty": "기초/실전/고난도",
+      "topic": "세부 주제",
+      "explanation": "정답과 오답 선택지 해설"
+    }
+  ]
+}`;
+
+    const result = await callGemini(prompt);
+    let examData;
+    try {
+      examData = JSON.parse(result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
+    } catch {
+      showToast('시험 생성 형식 오류. 다시 시도해주세요.', 'error');
+      return;
+    }
+
+    const rawQuestions = (examData.questions || []).slice(0, count);
+    const usesOneBasedAnswers = rawQuestions.length > 0
+      && rawQuestions.every(q => Number(q.answer) >= 1 && Number(q.answer) <= 4);
+    const questions = rawQuestions.map((q, i) => ({
+      ...q,
+      id: i + 1,
+      subject: subjects.includes(q.subject) ? q.subject : subjects[i % subjects.length],
+      options: Array.isArray(q.options) ? q.options.slice(0, 4) : [],
+      answer: usesOneBasedAnswers ? Number(q.answer) - 1 : Number(q.answer),
+      difficulty: q.difficulty || difficulty,
+      topic: q.topic || q.subject || subjects[i % subjects.length],
+      explanation: q.explanation || ''
+    }));
+
+    if (questions.length === 0 || questions.some(q => q.options.length !== 4 || q.answer < 0 || q.answer > 3)) {
+      showToast('생성된 시험 문제 형식이 올바르지 않습니다. 다시 시도해주세요.', 'error');
+      return;
+    }
+
+    const quizData = { questions };
+    getState().currentQuiz = {
+      ...quizData,
+      subject: `실전 시험: ${subjects.join(', ')}`,
+      difficulty,
+      randomness: variation,
+      examMode: true,
+      examSubjects: subjects,
+      createdAt: new Date().toISOString()
+    };
+    getState().currentAnswers = {};
+
+    questions.forEach(q => {
+      getState().previousQuestions.push({ summary: q.question.substring(0, 60), topic: q.topic });
+    });
+    if (getState().previousQuestions.length > 100) {
+      getState().previousQuestions = getState().previousQuestions.slice(-100);
+    }
+
+    getState().generatedQuizzes.push({
+      id: generateId(),
+      type: 'exam',
+      ...getState().currentQuiz
+    });
+    saveState();
+
+    renderGeneratedExam(quizData);
+    showToast(`${questions.length}문제 시험지가 생성되었습니다.`, 'success');
+  } catch (e) {
+    showToast('시험 생성 실패: ' + e.message, 'error');
+  } finally {
+    loading.classList.remove('show');
+  }
+}
+
+function renderGeneratedExam(data) {
+  const area = document.getElementById('generatedExamArea');
+  const quiz = getState().currentQuiz;
+  document.getElementById('examBuilderSetup').style.display = 'none';
+  document.getElementById('generatedExamResult').style.display = 'none';
+  area.style.display = 'block';
+
+  area.innerHTML = `
+    <div class="generated-exam-header">
+      <div>
+        <div class="generated-exam-title">실전 모의시험</div>
+        <div class="generated-exam-meta">${escapeHtmlText(quiz.examSubjects.join(', '))} · ${data.questions.length}문제 · ${escapeHtmlText(quiz.difficulty)}</div>
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn btn-success" onclick="submitGeneratedExam()">채점하기</button>
+        <button class="btn btn-secondary" onclick="resetGeneratedExam()">새 시험 설정</button>
+      </div>
+    </div>
+    <div id="generatedExamQuestions">
+      ${data.questions.map((q, i) => `
+        <div class="quiz-question" id="exam-question-${i}">
+          <div class="generated-exam-question-number">문제 ${i + 1}</div>
+          <div class="quiz-text">${escapeHtmlText(q.question)}</div>
+          <div class="quiz-options">
+            ${q.options.map((opt, j) => `
+              <div class="quiz-option" onclick="selectGeneratedExamAnswer(${i}, ${j})" id="exam-option-${i}-${j}">
+                <div class="num">${j + 1}</div>
+                <div>${escapeHtmlText(opt)}</div>
+              </div>
+            `).join('')}
+          </div>
+          <div class="explanation" id="exam-explanation-${i}">
+            <div class="explanation-title">📝 해설</div>
+            <div>${escapeHtmlText(q.explanation || '')}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function selectGeneratedExamAnswer(qIdx, oIdx) {
+  if (document.querySelector(`#exam-question-${qIdx} .quiz-option.correct`)) return;
+  document.querySelectorAll(`#exam-question-${qIdx} .quiz-option`).forEach(el => el.classList.remove('selected'));
+  document.getElementById(`exam-option-${qIdx}-${oIdx}`).classList.add('selected');
+  getState().currentAnswers[qIdx] = oIdx;
+}
+
+function submitGeneratedExam() {
+  const quiz = getState().currentQuiz;
+  if (!quiz) return;
+
+  const total = quiz.questions.length;
+  const answered = Object.keys(getState().currentAnswers).length;
+  if (answered < total && !confirm(`${total - answered}문제를 풀지 않았습니다. 채점하시겠습니까?`)) return;
+
+  let correct = 0;
+  const wrongTopics = [];
+
+  quiz.questions.forEach((q, i) => {
+    const userAnswer = getState().currentAnswers[i];
+    document.getElementById(`exam-option-${i}-${q.answer}`).classList.add('correct');
+    if (userAnswer === q.answer) {
+      correct++;
+    } else {
+      if (userAnswer !== undefined) document.getElementById(`exam-option-${i}-${userAnswer}`).classList.add('wrong');
+      wrongTopics.push({ topic: q.topic || q.subject || quiz.subject, subject: q.subject || quiz.subject, question: q.question, explanation: q.explanation });
+    }
+    document.getElementById(`exam-explanation-${i}`).classList.add('show');
+    document.querySelectorAll(`#exam-question-${i} .quiz-option`).forEach(el => { el.style.pointerEvents = 'none'; });
+  });
+
+  const score = Math.round(correct / total * 100);
+  const result = document.getElementById('generatedExamResult');
+  result.innerHTML = `
+    <div class="result-card">
+      <div class="result-score">${score}점</div>
+      <div class="result-label">${correct}/${total} 정답</div>
+      <div style="margin-top:16px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+        <span class="tag tag-success">정답: ${correct}문제</span>
+        <span class="tag tag-danger">오답: ${total - correct}문제</span>
+        <span class="tag tag-info">${escapeHtmlText(quiz.difficulty)} · 변형 ${quiz.randomness}/5</span>
+      </div>
+      <div style="margin-top:20px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="resetGeneratedExam()">새 시험 생성</button>
+        <button class="btn btn-danger" onclick="saveWrongAnswers()">오답 취약점 저장</button>
+      </div>
+    </div>
+  `;
+  result.style.display = 'block';
+
+  getState().quizHistory.push({
+    id: generateId(),
+    date: new Date().toISOString(),
+    subject: quiz.subject,
+    difficulty: quiz.difficulty,
+    total,
+    correct,
+    score,
+    wrongTopics: wrongTopics.map(w => w.topic)
+  });
+  getState()._currentWrongTopics = wrongTopics;
+
+  const examQuestions = quiz.questions.map((q, i) => ({
+    ...q,
+    number: i + 1,
+    subject: q.subject || quiz.subject,
+    topic: q.topic || '',
+    year: '',
+    options: q.options
+  }));
+  const quizAnswers = {};
+  Object.entries(getState().currentAnswers).forEach(([k, v]) => { quizAnswers[k] = v; });
+  addToWrongNotes(examQuestions, quizAnswers, 'quiz');
+
+  saveState();
+  updateDashboard();
+}
+
+function resetGeneratedExam() {
+  document.getElementById('examBuilderSetup').style.display = 'block';
+  document.getElementById('generatedExamArea').style.display = 'none';
+  document.getElementById('generatedExamResult').style.display = 'none';
+  getState().currentQuiz = null;
+  getState().currentAnswers = {};
+  renderExamSubjectPool();
 }
 
 async function saveWrongAnswers() {
