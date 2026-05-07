@@ -2898,6 +2898,15 @@ body {
         <input class="input" type="text" id="examExtraRequest" placeholder="예: 계산형 비중 높이기, 지문형 문제 많이 내기...">
       </div>
 
+      <div class="form-group">
+        <label class="form-label">프로그래밍 언어 실전 문제 옵션</label>
+        <label class="exam-subject-option" style="margin-bottom:8px;">
+          <input type="checkbox" id="examCodePracticeOnly">
+          <span>체크하면 프로그래밍 언어로 이루어진 실전 문제만 생성</span>
+        </label>
+        <input class="input" type="text" id="examProgrammingLanguage" placeholder="예: C, Java, Python, JavaScript">
+      </div>
+
       <button class="btn btn-primary" onclick="generateConceptExam()">🧾 시험 생성</button>
     </div>
 
@@ -8110,9 +8119,16 @@ async function generateConceptExam() {
   const difficulty = document.getElementById('examDifficulty').value;
   const variation = parseInt(document.getElementById('examVariation').value, 10);
   const extraRequest = document.getElementById('examExtraRequest').value.trim();
+  const codePracticeOnly = document.getElementById('examCodePracticeOnly')?.checked || false;
+  const programmingLanguage = document.getElementById('examProgrammingLanguage')?.value.trim() || '';
 
   if (subjects.length === 0) {
     showToast('시험에 넣을 과목을 먼저 선택하세요.', 'error');
+    return;
+  }
+
+  if (codePracticeOnly && !programmingLanguage) {
+    showToast('실전 문제를 만들 프로그래밍 언어를 입력하세요.', 'error');
     return;
   }
 
@@ -8142,6 +8158,15 @@ async function generateConceptExam() {
       : '당신은 한국 9급 공무원 전산직 시험 출제위원입니다.';
 
   const relatedQuestions = subjects.map(subject => getRelatedExamQuestions(subject, '', 4)).join('\n');
+  const codePracticeGuide = codePracticeOnly ? `
+
+프로그래밍 언어 실전 문제 모드:
+- 대상 프로그래밍 언어: ${programmingLanguage}
+- 모든 문제는 "${programmingLanguage}" 코드, 문법, 실행 결과, 빈칸 완성, 오류 찾기, 자료형/연산자/제어문/함수/클래스/포인터/예외 등 언어 자체의 사용으로 구성하세요.
+- "프로그래밍 언어"라는 과목명 설명 문제가 아니라, 실제 코드 조각을 읽고 풀어야 하는 실전 문제로만 출제하세요.
+- 문제 지문 또는 보기에 반드시 ${programmingLanguage} 코드가 포함되어야 합니다.
+- 코드가 없는 이론 암기형 문제, 전산학 일반 개념 문제, 과목 소개 문제는 출제하지 마세요.
+- 저장된 개념 정리의 범위 안에서 출제하되, 선택한 시험 과목은 분류용 subject로만 사용하세요.` : '';
 
   try {
     const prompt = `${modeContext}
@@ -8154,6 +8179,7 @@ ${getExamSubjectDistribution(subjects, count)}
 문제 수준: ${difficulty}
 변형 수준: ${variation}/5 - ${variationGuide[variation]}
 ${extraRequest ? `추가 요청: ${extraRequest}` : ''}
+${codePracticeGuide}
 
 저장된 개념 정리 요약:
 ${conceptContext}
@@ -8222,6 +8248,8 @@ ${relatedQuestions || '저장된 기출 참고 자료 없음'}
       randomness: variation,
       examMode: true,
       examSubjects: subjects,
+      codePracticeOnly,
+      programmingLanguage: codePracticeOnly ? programmingLanguage : '',
       createdAt: new Date().toISOString()
     };
     getState().currentAnswers = {};
@@ -8252,6 +8280,9 @@ ${relatedQuestions || '저장된 기출 참고 자료 없음'}
 function renderGeneratedExam(data) {
   const area = document.getElementById('generatedExamArea');
   const quiz = getState().currentQuiz;
+  const codePracticeMeta = quiz.codePracticeOnly && quiz.programmingLanguage
+    ? ` · ${escapeHtmlText(quiz.programmingLanguage)} 실전 코드 문제`
+    : '';
   document.getElementById('examBuilderSetup').style.display = 'none';
   document.getElementById('generatedExamResult').style.display = 'none';
   area.style.display = 'block';
@@ -8260,7 +8291,7 @@ function renderGeneratedExam(data) {
     <div class="generated-exam-header">
       <div>
         <div class="generated-exam-title">실전 모의시험</div>
-        <div class="generated-exam-meta">${escapeHtmlText(quiz.examSubjects.join(', '))} · ${data.questions.length}문제 · ${escapeHtmlText(quiz.difficulty)}</div>
+        <div class="generated-exam-meta">${escapeHtmlText(quiz.examSubjects.join(', '))} · ${data.questions.length}문제 · ${escapeHtmlText(quiz.difficulty)}${codePracticeMeta}</div>
       </div>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
         <button class="btn btn-success" onclick="submitGeneratedExam()">채점하기</button>
