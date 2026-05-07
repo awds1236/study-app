@@ -2907,11 +2907,20 @@ body {
         <div class="form-row" style="margin-top:8px;">
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">기본 언어</label>
-            <select class="select" id="examProgrammingLanguagePreset">
-              <option value="C">C</option>
-              <option value="Java">Java</option>
-              <option value="Python">Python</option>
-            </select>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <label class="exam-subject-option" style="margin:0; min-width:84px;">
+                <input type="checkbox" class="exam-programming-language-cb" value="C" checked>
+                <span>C</span>
+              </label>
+              <label class="exam-subject-option" style="margin:0; min-width:84px;">
+                <input type="checkbox" class="exam-programming-language-cb" value="Java" checked>
+                <span>Java</span>
+              </label>
+              <label class="exam-subject-option" style="margin:0; min-width:84px;">
+                <input type="checkbox" class="exam-programming-language-cb" value="Python" checked>
+                <span>Python</span>
+              </label>
+            </div>
           </div>
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">추가 언어</label>
@@ -8133,12 +8142,21 @@ async function generateConceptExam() {
   const variation = parseInt(document.getElementById('examVariation').value, 10);
   const extraRequest = document.getElementById('examExtraRequest').value.trim();
   const codePracticeOnly = document.getElementById('examCodePracticeOnly')?.checked || false;
-  const programmingLanguagePreset = document.getElementById('examProgrammingLanguagePreset')?.value || 'C';
-  const customProgrammingLanguage = document.getElementById('examProgrammingLanguage')?.value.trim() || '';
-  const programmingLanguage = customProgrammingLanguage || programmingLanguagePreset;
+  const presetProgrammingLanguages = [...document.querySelectorAll('.exam-programming-language-cb:checked')].map(cb => cb.value);
+  const customProgrammingLanguages = (document.getElementById('examProgrammingLanguage')?.value || '')
+    .split(',')
+    .map(lang => lang.trim())
+    .filter(Boolean);
+  const programmingLanguages = [...new Set([...presetProgrammingLanguages, ...customProgrammingLanguages])];
+  const programmingLanguageLabel = programmingLanguages.join(', ');
 
   if (subjects.length === 0) {
     showToast('시험에 넣을 과목을 먼저 선택하세요.', 'error');
+    return;
+  }
+
+  if (codePracticeOnly && programmingLanguages.length === 0) {
+    showToast('실전 문제를 만들 프로그래밍 언어를 하나 이상 선택하거나 입력하세요.', 'error');
     return;
   }
 
@@ -8171,10 +8189,11 @@ async function generateConceptExam() {
   const codePracticeGuide = codePracticeOnly ? `
 
 프로그래밍 언어 실전 문제 모드:
-- 대상 프로그래밍 언어: ${programmingLanguage}
-- 모든 문제는 "${programmingLanguage}" 코드, 문법, 실행 결과, 빈칸 완성, 오류 찾기, 자료형/연산자/제어문/함수/클래스/포인터/예외 등 언어 자체의 사용으로 구성하세요.
+- 대상 프로그래밍 언어: ${programmingLanguageLabel}
+- 선택된 언어가 여러 개면 전체 시험에 고르게 섞어 출제하세요.
+- 모든 문제는 선택된 언어 중 하나의 코드, 문법, 실행 결과, 빈칸 완성, 오류 찾기, 자료형/연산자/제어문/함수/클래스/포인터/예외 등 언어 자체의 사용으로 구성하세요.
 - "프로그래밍 언어"라는 과목명 설명 문제가 아니라, 실제 코드 조각을 읽고 풀어야 하는 실전 문제로만 출제하세요.
-- 문제 지문 또는 보기에 반드시 ${programmingLanguage} 코드가 포함되어야 합니다.
+- 문제 지문 또는 보기에 반드시 해당 문제의 프로그래밍 언어 코드가 포함되어야 합니다.
 - 코드가 없는 이론 암기형 문제, 전산학 일반 개념 문제, 과목 소개 문제는 출제하지 마세요.
 - 저장된 개념 정리의 범위 안에서 출제하되, 선택한 시험 과목은 분류용 subject로만 사용하세요.` : '';
 
@@ -8259,7 +8278,7 @@ ${relatedQuestions || '저장된 기출 참고 자료 없음'}
       examMode: true,
       examSubjects: subjects,
       codePracticeOnly,
-      programmingLanguage: codePracticeOnly ? programmingLanguage : '',
+      programmingLanguage: codePracticeOnly ? programmingLanguageLabel : '',
       createdAt: new Date().toISOString()
     };
     getState().currentAnswers = {};
