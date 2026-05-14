@@ -2491,7 +2491,7 @@ body {
 
 <!-- 메인 -->
 <div class="main">
-<div id="appVersion" style="position:fixed; top:8px; right:16px; z-index:9999; font-size:11px; color:var(--c-text-muted); background:var(--c-bg-card); padding:2px 10px; border-radius:12px; border:1px solid var(--c-border); opacity:0.7;">v2.10.8</div>
+<div id="appVersion" style="position:fixed; top:8px; right:16px; z-index:9999; font-size:11px; color:var(--c-text-muted); background:var(--c-bg-card); padding:2px 10px; border-radius:12px; border:1px solid var(--c-border); opacity:0.7;">v2.10.9</div>
 
   <!-- ===== 홈/대시보드 ===== -->
   <div class="page active" id="page-home">
@@ -8012,7 +8012,7 @@ function getConceptExamSubjects() {
     if (normalized && !blocked.has(normalized)) subjects.push(normalized);
   };
   (getState().subjects || []).forEach(subject => {
-    if (getSubTopics(subject).length > 0) addSubject(subject);
+    if (currentMode === 'ncs' || getSubTopics(subject).length > 0) addSubject(subject);
   });
   (getState().analysisData?.categories || []).forEach(cat => addSubject(cat.subject));
   (getState().extractedQuestions || []).forEach(q => addSubject(q.subject));
@@ -8142,6 +8142,10 @@ function buildConceptExamContext(subjects) {
       if (topics.length > 0) fallbackLines.push(`- 등록된 세부 주제: ${topics.join(', ')}`);
       if (analyzedTopics.length > 0) fallbackLines.push(`- 업로드 자료 분석 주제: ${analyzedTopics.join(', ')}`);
       if (questionSamples) fallbackLines.push(`- 업로드된 문제 예시\n${stripPromptText(questionSamples).slice(0, 3000)}`);
+      if (fallbackLines.length === 0 && currentMode === 'ncs' && NCS_DEFAULT_SUBJECTS.includes(subject)) {
+        fallbackLines.push(`- NCS 기본 영역: ${subject}`);
+        fallbackLines.push('- 업로드 자료에 세부 지문이 부족하면 해당 직업기초능력 영역의 표준 출제 범위와 실제 공공기관 필기시험 문항 형식을 기준으로 출제하세요.');
+      }
       if (fallbackLines.length === 0) return;
       conceptLines.push(...fallbackLines);
     }
@@ -8207,6 +8211,20 @@ async function generateConceptExam() {
     : currentMode === 'general'
       ? '당신은 한국 9급 공무원 국어/영어/한국사 시험 출제위원입니다.'
       : '당신은 한국 9급 공무원 전산직 시험 출제위원입니다.';
+  const modeSpecificExamGuide = currentMode === 'ncs' ? `
+NCS 전용 출제 방향:
+- 문제의 중심은 전공 암기가 아니라 직장 업무 상황에서 필요한 자료 이해, 판단, 계산, 의사결정입니다.
+- 의사소통능력은 공문, 안내문, 보고서, 이메일, 회의록을 읽고 핵심 내용·추론·수정 방향을 묻는 문항으로 만드세요.
+- 수리능력과 자원관리능력은 표, 일정, 예산, 인원, 재고, 소요시간 등 업무 자료를 제시하고 계산·비교·최적 선택을 요구하세요.
+- 문제해결능력과 조직이해능력은 규정, 절차, 조직 상황, 민원/위기 대응 조건을 바탕으로 타당한 판단을 묻도록 만드세요.
+- 정보능력/기술능력은 요청이 있을 때 정보처리기사 수준 IT 지식을 결합하되, 반드시 업무 자료 해석형 NCS 문항으로 구성하세요.
+- 자기개발능력, 직업윤리, 대인관계능력은 사례형 상황 판단 문항으로 만들고 단순 덕목 암기 문제는 피하세요.` : currentMode === 'cs' ? `
+전산학 전용 출제 방향:
+- 문제의 중심은 9급 공무원 전산직 전공 지식의 정확한 이해와 적용입니다.
+- 운영체제, 데이터베이스, 네트워크, 정보보호, 소프트웨어공학, 자료구조, 알고리즘, 컴퓨터구조, 프로그래밍 언어론 등 전산학 범위에서 출제하세요.
+- 코드 실행 결과, SQL, 정규화, 스케줄링, 주소 계산, 서브넷, 암호/인증, 복잡도, 자료구조 동작처럼 전공 지식을 직접 확인하는 문항을 섞으세요.
+- NCS처럼 직장 상황 판단을 중심으로 만들지 말고, 전공 개념·원리·절차·계산·표준·오답 함정 중심으로 출제하세요.
+- 지문형 문제를 쓰더라도 업무 메일/민원 상황보다 기술 설명, 코드, 표, 조건, 시스템 동작 시나리오를 중심으로 구성하세요.` : '';
 
   const relatedQuestions = subjects.map(subject => getRelatedExamQuestions(subject, '', 4)).join('\n');
   const codePracticeGuide = codePracticeOnly ? `
@@ -8233,6 +8251,7 @@ ${getExamSubjectDistribution(subjects, count)}
 ${extraRequest ? `시험 요청 사항(반드시 반영): ${extraRequest}
 - 위 요청은 선택 참고가 아니라 출제 제약입니다. 문제 유형, 소재, 지문 길이, 특정 직렬/기업 조건, 정보처리기사 수준 IT 내용 반영 요구를 문제 구성에 직접 반영하세요.` : ''}
 ${codePracticeGuide}
+${modeSpecificExamGuide}
 
 업로드 자료 및 개념 정리 요약:
 ${conceptContext}
