@@ -4303,7 +4303,7 @@ function getGenerateContentUrl() {
   return `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(getSelectedAiModel())}:generateContent?key=${APP_STATE.apiKey}`;
 }
 
-async function callGemini(prompt, retries = 2) {
+async function callGemini(prompt, retries = 2, generationConfigOverride = null) {
   if (!APP_STATE.apiKey) {
     showToast('API 키를 먼저 설정해주세요.', 'error');
     showPage('settings');
@@ -4323,7 +4323,8 @@ async function callGemini(prompt, retries = 2) {
             temperature: 0.8,
             topP: 0.95,
             topK: 40,
-            maxOutputTokens: 65536
+            maxOutputTokens: 65536,
+            ...(generationConfigOverride || {})
           }
         })
       });
@@ -7774,7 +7775,11 @@ ${prevQSummary ? `5. 다음 문제들은 이미 출제되었으니 유사한 문
       return;
     }
 
-    quizData.questions = normalizeGeneratedQuestions(quizData.questions, subject ? [subject] : getState().subjects, difficulty);
+    quizData.questions = await reviewGeneratedQuestions(quizData.questions, {
+      fallbackSubjects: subject ? [subject] : getState().subjects,
+      fallbackDifficulty: difficulty,
+      reviewPasses: 2
+    });
     if (hasInvalidGeneratedQuestion(quizData.questions)) {
       showToast('생성된 문제의 정답/선택지/해설 형식이 올바르지 않습니다. 다시 시도해주세요.', 'error');
       return;
@@ -8154,6 +8159,75 @@ function hasInvalidGeneratedQuestion(questions) {
     );
 }
 
+async function reviewGeneratedQuestions(rawQuestions, context = {}) {
+  let questions = normalizeGeneratedQuestions(
+    rawQuestions,
+    context.fallbackSubjects || [],
+    context.fallbackDifficulty || ''
+  );
+  if (hasInvalidGeneratedQuestion(questions)) return questions;
+
+  const reviewPasses = context.reviewPasses || 2;
+  for (let pass = 1; pass <= reviewPasses; pass++) {
+    const prompt = `당신은 시험 문제 검수위원입니다.
+아래 ${questions.length}개 객관식 문제를 검토하고, 정답 인덱스(answer)와 해설이 실제 문제 풀이 결과와 일치하도록 교정하세요.
+
+검토 기준:
+- 각 문제를 실제로 풀어서 정답을 다시 산정하세요.
+- answer는 반드시 options 배열의 0~3 인덱스입니다. 0=①, 1=②, 2=③, 3=④.
+- 기존 answer와 해설이 충돌하면 해설을 믿지 말고 문제와 보기 자체를 다시 풀어 올바른 answer로 고치세요.
+- 해설은 최종 answer와 반드시 일치해야 하며, 정답 근거와 오답 근거를 모두 포함해야 합니다.
+- 정답이 없거나 복수 정답이면 문제 지문 또는 선택지를 최소한으로 수정해 정답이 하나만 존재하게 만드세요.
+- 계산형, 자료형, 조건추리 문제는 수치와 조건을 검산하고, 모순되거나 부족한 조건이 있으면 문제 안에서 완결되도록 보완하세요.
+- 임의 통계나 기관 수치는 외부 사실처럼 단정하지 말고, 가상의 자료라면 문항 안에서 완결되게 제시하세요.
+- subject, difficulty, topic은 필요한 경우만 보정하고, id는 1부터 순서대로 유지하세요.
+
+검토 라운드: ${pass}/${reviewPasses}
+문제 데이터:
+${JSON.stringify({ questions }, null, 2)}
+
+반드시 다음 JSON 형식으로만 반환하세요. 마크다운 코드 블록은 쓰지 마세요:
+{
+  "questions": [
+    {
+      "id": 1,
+      "subject": "과목명",
+      "question": "검토 완료된 문제 내용",
+      "options": ["선택지1", "선택지2", "선택지3", "선택지4"],
+      "answer": 0,
+      "difficulty": "난이도",
+      "topic": "세부 주제",
+      "explanation": "최종 정답과 일치하는 상세 해설"
+    }
+  ]
+}`;
+
+    const result = await callGemini(prompt, 1, {
+      temperature: 0.1,
+      topP: 0.3,
+      topK: 1
+    });
+
+    let reviewedData;
+    try {
+      reviewedData = JSON.parse(result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
+    } catch {
+      throw new Error('검토 결과 형식 오류');
+    }
+
+    const reviewedQuestions = normalizeGeneratedQuestions(
+      (reviewedData.questions || []).slice(0, questions.length),
+      context.fallbackSubjects || [],
+      context.fallbackDifficulty || ''
+    );
+    if (hasInvalidGeneratedQuestion(reviewedQuestions) || reviewedQuestions.length !== questions.length) {
+      throw new Error('검토된 문제 형식 오류');
+    }
+    questions = reviewedQuestions;
+  }
+  return questions;
+}
+
 function buildConceptExamContext(subjects) {
   const blocks = [];
   subjects.forEach(subject => {
@@ -8353,7 +8427,11 @@ ${currentMode === 'ncs' ? `8. NCS 문항은 너무 짧게 만들지 마세요. �
     }
 
     const rawQuestions = (examData.questions || []).slice(0, count);
-    const questions = normalizeGeneratedQuestions(rawQuestions, subjects, difficulty);
+    const questions = await reviewGeneratedQuestions(rawQuestions, {
+      fallbackSubjects: subjects,
+      fallbackDifficulty: difficulty,
+      reviewPasses: 2
+    });
 
     if (hasInvalidGeneratedQuestion(questions)) {
       showToast('생성된 시험 문제의 정답/선택지/해설 형식이 올바르지 않습니다. 다시 시도해주세요.', 'error');
@@ -8994,7 +9072,11 @@ JSON 형식으로만 반환 (마크다운 코드 블록 없이):
       return;
     }
 
-    quizData.questions = normalizeGeneratedQuestions(quizData.questions, [weakness.subject || '기타'], difficulty);
+    quizData.questions = await reviewGeneratedQuestions(quizData.questions, {
+      fallbackSubjects: [weakness.subject || '기타'],
+      fallbackDifficulty: difficulty,
+      reviewPasses: 2
+    });
     if (hasInvalidGeneratedQuestion(quizData.questions)) {
       showToast('생성된 취약점 문제의 정답/선택지/해설 형식이 올바르지 않습니다. 다시 시도해주세요.', 'error');
       return;
