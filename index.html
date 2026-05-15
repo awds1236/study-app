@@ -7778,6 +7778,7 @@ ${prevQSummary ? `5. 다음 문제들은 이미 출제되었으니 유사한 문
     quizData.questions = await reviewGeneratedQuestions(quizData.questions, {
       fallbackSubjects: subject ? [subject] : getState().subjects,
       fallbackDifficulty: difficulty,
+      expectedCount: count,
       reviewPasses: 2
     });
     if (hasInvalidGeneratedQuestion(quizData.questions)) {
@@ -8159,13 +8160,151 @@ function hasInvalidGeneratedQuestion(questions) {
     );
 }
 
+function stripReviewFields(question) {
+  if (!question || typeof question !== 'object') return question;
+  const { _reviewAction, _reviewReason, ...cleaned } = question;
+  return cleaned;
+}
+
+function getQuestionStructuralIssue(question) {
+  if (!question || typeof question !== 'object') return 'question object is missing';
+  if (!String(question.question || '').trim()) return 'question text is missing';
+  if (!Array.isArray(question.options) || question.options.length !== 4) return 'there must be exactly four options';
+  if (question.options.some(option => !String(option || '').trim())) return 'one or more options are blank';
+  if (!Number.isInteger(question.answer) || question.answer < 0 || question.answer > 3) return 'answer must be an integer index from 0 to 3';
+  if (!String(question.explanation || '').trim()) return 'explanation is missing';
+  return '';
+}
+
+async function regenerateGeneratedQuestion(question, questionIndex, context = {}, reason = '') {
+  const fallbackSubjects = context.fallbackSubjects || [];
+  const subjectCount = Math.max(fallbackSubjects.length, 1);
+  const fallbackSubject = question?.subject || fallbackSubjects[questionIndex % subjectCount] || 'General';
+  const fallbackDifficulty = question?.difficulty || context.fallbackDifficulty || '';
+  const prompt = `You are a strict exam-question writer and verifier.
+Regenerate only the single flawed multiple-choice question below.
+
+Reason this item must be regenerated:
+${reason || 'The question has no reliable single correct answer, has missing conditions, or has a structural error.'}
+
+Original item:
+${JSON.stringify(question || {}, null, 2)}
+
+Requirements:
+- Return exactly one four-option multiple-choice question.
+- The question must contain all information needed to solve it.
+- There must be exactly one correct option.
+- "answer" must be a zero-based index from 0 to 3.
+- The explanation must match the final answer and explain why the other options are wrong.
+- Keep the same subject/topic/difficulty when possible.
+- Do not include markdown fences.
+
+Return only this JSON:
+{
+  "question": {
+    "id": ${questionIndex + 1},
+    "subject": "${fallbackSubject}",
+    "question": "question text",
+    "options": ["option 1", "option 2", "option 3", "option 4"],
+    "answer": 0,
+    "difficulty": "${fallbackDifficulty}",
+    "topic": "${question?.topic || fallbackSubject}",
+    "explanation": "detailed explanation"
+  }
+}`;
+
+  const result = await callGemini(prompt, 1, {
+    temperature: 0.25,
+    topP: 0.6,
+    topK: 20
+  });
+
+  let regeneratedData;
+  try {
+    regeneratedData = JSON.parse(result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
+  } catch {
+    throw new Error('regenerated question format error');
+  }
+
+  const normalized = normalizeGeneratedQuestions(
+    [regeneratedData.question || regeneratedData],
+    context.fallbackSubjects || [],
+    context.fallbackDifficulty || ''
+  )[0];
+  normalized.id = questionIndex + 1;
+  const structuralIssue = getQuestionStructuralIssue(normalized);
+  if (structuralIssue) throw new Error(`regenerated question is invalid: ${structuralIssue}`);
+  return stripReviewFields(normalized);
+}
+
+async function findQuestionsNeedingRegeneration(questions) {
+  const prompt = `You are a strict exam-question quality gate.
+Identify only questions that must be regenerated because they cannot be fixed by changing the answer or explanation.
+
+Mark a question for regeneration when:
+- there is no correct option,
+- there are multiple correct options,
+- the question is impossible to solve from the given text,
+- required data/conditions are missing,
+- the data or options contradict each other,
+- the item is factually unreliable or based on unverifiable made-up facts.
+
+Do not mark a question only because the answer index and explanation disagree. That should be fixed by changing the answer or explanation.
+
+Question data:
+${JSON.stringify({ questions }, null, 2)}
+
+Return only this JSON:
+{
+  "regenerate": [
+    { "index": 0, "reason": "short reason" }
+  ]
+}`;
+
+  const result = await callGemini(prompt, 1, {
+    temperature: 0.1,
+    topP: 0.3,
+    topK: 1
+  });
+
+  try {
+    const parsed = JSON.parse(result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
+    return Array.isArray(parsed.regenerate) ? parsed.regenerate : [];
+  } catch {
+    return [];
+  }
+}
+
 async function reviewGeneratedQuestions(rawQuestions, context = {}) {
   let questions = normalizeGeneratedQuestions(
     rawQuestions,
     context.fallbackSubjects || [],
     context.fallbackDifficulty || ''
   );
-  if (hasInvalidGeneratedQuestion(questions)) return questions;
+  const expectedCount = Number(context.expectedCount) || questions.length;
+  if (!Array.isArray(questions)) return questions;
+  if (expectedCount > 0) {
+    questions = questions.slice(0, expectedCount);
+    while (questions.length < expectedCount) {
+      questions.push({
+        id: questions.length + 1,
+        subject: (context.fallbackSubjects || [])[questions.length % Math.max((context.fallbackSubjects || []).length, 1)] || 'General',
+        question: '',
+        options: [],
+        answer: 0,
+        difficulty: context.fallbackDifficulty || '',
+        topic: '',
+        explanation: ''
+      });
+    }
+  }
+  if (questions.length === 0) return questions;
+  for (let i = 0; i < questions.length; i++) {
+    const structuralIssue = getQuestionStructuralIssue(questions[i]);
+    if (structuralIssue) {
+      questions[i] = await regenerateGeneratedQuestion(questions[i], i, context, structuralIssue);
+    }
+  }
 
   const reviewPasses = context.reviewPasses || 2;
   for (let pass = 1; pass <= reviewPasses; pass++) {
@@ -8223,9 +8362,21 @@ ${JSON.stringify({ questions }, null, 2)}
     if (hasInvalidGeneratedQuestion(reviewedQuestions) || reviewedQuestions.length !== questions.length) {
       throw new Error('검토된 문제 형식 오류');
     }
-    questions = reviewedQuestions;
+    const regenerateItems = await findQuestionsNeedingRegeneration(reviewedQuestions);
+    for (const item of regenerateItems) {
+      const index = Number(item.index);
+      if (Number.isInteger(index) && index >= 0 && index < reviewedQuestions.length) {
+        reviewedQuestions[index] = await regenerateGeneratedQuestion(
+          reviewedQuestions[index],
+          index,
+          context,
+          item.reason || 'quality gate marked this item for regeneration'
+        );
+      }
+    }
+    questions = reviewedQuestions.map(stripReviewFields);
   }
-  return questions;
+  return questions.map(stripReviewFields);
 }
 
 function buildConceptExamContext(subjects) {
@@ -8430,6 +8581,7 @@ ${currentMode === 'ncs' ? `8. NCS 문항은 너무 짧게 만들지 마세요. �
     const questions = await reviewGeneratedQuestions(rawQuestions, {
       fallbackSubjects: subjects,
       fallbackDifficulty: difficulty,
+      expectedCount: count,
       reviewPasses: 2
     });
 
@@ -9075,6 +9227,7 @@ JSON 형식으로만 반환 (마크다운 코드 블록 없이):
     quizData.questions = await reviewGeneratedQuestions(quizData.questions, {
       fallbackSubjects: [weakness.subject || '기타'],
       fallbackDifficulty: difficulty,
+      expectedCount: count,
       reviewPasses: 2
     });
     if (hasInvalidGeneratedQuestion(quizData.questions)) {
