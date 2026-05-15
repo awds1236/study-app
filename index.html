@@ -2491,7 +2491,7 @@ body {
 
 <!-- 메인 -->
 <div class="main">
-<div id="appVersion" style="position:fixed; top:8px; right:16px; z-index:9999; font-size:11px; color:var(--c-text-muted); background:var(--c-bg-card); padding:2px 10px; border-radius:12px; border:1px solid var(--c-border); opacity:0.7;">v2.10.12</div>
+<div id="appVersion" style="position:fixed; top:8px; right:16px; z-index:9999; font-size:11px; color:var(--c-text-muted); background:var(--c-bg-card); padding:2px 10px; border-radius:12px; border:1px solid var(--c-border); opacity:0.7;">v2.10.13</div>
 
   <!-- ===== 홈/대시보드 ===== -->
   <div class="page active" id="page-home">
@@ -3099,7 +3099,7 @@ body {
       <div class="form-group" style="margin-top:14px; margin-bottom:0;">
         <label class="form-label">AI 모델 선택</label>
         <select class="select" id="aiModelSelect" onchange="saveAiModel()">
-          <option value="gemini-3-flash-preview">현재 모델 - Gemini 3 Flash Preview</option>
+          <option value="gemini-3.1-flash-lite">현재 모델 - Gemini 3.1 Flash-Lite</option>
           <option value="gemma-4-31b-it">Gemma 4 최고 모델 - Gemma 4 31B IT</option>
         </select>
       </div>
@@ -3895,7 +3895,7 @@ function hydrateDefaultSubTopics(saved, subject) {
 
 const APP_STATE = {
   apiKey: localStorage.getItem('gemini_api_key') || '',
-  aiModel: localStorage.getItem('ai_model') || 'gemini-3-flash-preview',
+  aiModel: normalizeAiModel(localStorage.getItem('ai_model')) || 'gemini-3.1-flash-lite',
   subjects: hydrateDefaultSubjects(safeParseArray('subjects')),
   subTopics: (() => {
     const saved = safeParseJSON('sub_topics') || {};
@@ -4295,8 +4295,16 @@ function saveState() {
 }
 
 // ==================== Gemini API ====================
+function normalizeAiModel(model) {
+  if (model === 'gemini-3-flash-preview') return 'gemini-3.1-flash-lite';
+  return model || '';
+}
+
 function getSelectedAiModel() {
-  return APP_STATE.aiModel || localStorage.getItem('ai_model') || 'gemini-3-flash-preview';
+  const model = normalizeAiModel(APP_STATE.aiModel || localStorage.getItem('ai_model')) || 'gemini-3.1-flash-lite';
+  if (APP_STATE.aiModel !== model) APP_STATE.aiModel = model;
+  if (localStorage.getItem('ai_model') !== model) localStorage.setItem('ai_model', model);
+  return model;
 }
 
 function getGenerateContentUrl() {
