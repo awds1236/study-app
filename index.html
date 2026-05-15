@@ -2491,7 +2491,7 @@ body {
 
 <!-- 메인 -->
 <div class="main">
-<div id="appVersion" style="position:fixed; top:8px; right:16px; z-index:9999; font-size:11px; color:var(--c-text-muted); background:var(--c-bg-card); padding:2px 10px; border-radius:12px; border:1px solid var(--c-border); opacity:0.7;">v2.10.11</div>
+<div id="appVersion" style="position:fixed; top:8px; right:16px; z-index:9999; font-size:11px; color:var(--c-text-muted); background:var(--c-bg-card); padding:2px 10px; border-radius:12px; border:1px solid var(--c-border); opacity:0.7;">v2.10.12</div>
 
   <!-- ===== 홈/대시보드 ===== -->
   <div class="page active" id="page-home">
@@ -7779,7 +7779,7 @@ ${prevQSummary ? `5. 다음 문제들은 이미 출제되었으니 유사한 문
       fallbackSubjects: subject ? [subject] : getState().subjects,
       fallbackDifficulty: difficulty,
       expectedCount: count,
-      reviewPasses: 1
+      reviewPasses: count > 20 ? 0 : 1
     });
     if (hasInvalidGeneratedQuestion(quizData.questions)) {
       showToast('생성된 문제의 정답/선택지/해설 형식이 올바르지 않습니다. 다시 시도해주세요.', 'error');
@@ -8268,7 +8268,7 @@ async function reviewGeneratedQuestions(rawQuestions, context = {}) {
     }
   }
 
-  const reviewPasses = context.reviewPasses || 1;
+  const reviewPasses = context.reviewPasses ?? 1;
   for (let pass = 1; pass <= reviewPasses; pass++) {
     const prompt = `당신은 시험 문제 검수위원입니다.
 아래 ${questions.length}개 객관식 문제를 검토하고, 정답 인덱스(answer)와 해설이 실제 문제 풀이 결과와 일치하도록 교정하세요.
@@ -8553,7 +8553,7 @@ ${currentMode === 'ncs' ? `8. NCS 문항은 너무 짧게 만들지 마세요. �
       fallbackSubjects: subjects,
       fallbackDifficulty: difficulty,
       expectedCount: count,
-      reviewPasses: 1
+      reviewPasses: count > 20 ? 0 : 1
     });
 
     if (hasInvalidGeneratedQuestion(questions)) {
