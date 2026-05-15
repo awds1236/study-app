@@ -2491,7 +2491,7 @@ body {
 
 <!-- 메인 -->
 <div class="main">
-<div id="appVersion" style="position:fixed; top:8px; right:16px; z-index:9999; font-size:11px; color:var(--c-text-muted); background:var(--c-bg-card); padding:2px 10px; border-radius:12px; border:1px solid var(--c-border); opacity:0.7;">v2.10.9</div>
+<div id="appVersion" style="position:fixed; top:8px; right:16px; z-index:9999; font-size:11px; color:var(--c-text-muted); background:var(--c-bg-card); padding:2px 10px; border-radius:12px; border:1px solid var(--c-border); opacity:0.7;">v2.10.10</div>
 
   <!-- ===== 홈/대시보드 ===== -->
   <div class="page active" id="page-home">
@@ -7779,7 +7779,7 @@ ${prevQSummary ? `5. 다음 문제들은 이미 출제되었으니 유사한 문
       fallbackSubjects: subject ? [subject] : getState().subjects,
       fallbackDifficulty: difficulty,
       expectedCount: count,
-      reviewPasses: 2
+      reviewPasses: 1
     });
     if (hasInvalidGeneratedQuestion(quizData.questions)) {
       showToast('생성된 문제의 정답/선택지/해설 형식이 올바르지 않습니다. 다시 시도해주세요.', 'error');
@@ -8237,44 +8237,6 @@ Return only this JSON:
   return stripReviewFields(normalized);
 }
 
-async function findQuestionsNeedingRegeneration(questions) {
-  const prompt = `You are a strict exam-question quality gate.
-Identify only questions that must be regenerated because they cannot be fixed by changing the answer or explanation.
-
-Mark a question for regeneration when:
-- there is no correct option,
-- there are multiple correct options,
-- the question is impossible to solve from the given text,
-- required data/conditions are missing,
-- the data or options contradict each other,
-- the item is factually unreliable or based on unverifiable made-up facts.
-
-Do not mark a question only because the answer index and explanation disagree. That should be fixed by changing the answer or explanation.
-
-Question data:
-${JSON.stringify({ questions }, null, 2)}
-
-Return only this JSON:
-{
-  "regenerate": [
-    { "index": 0, "reason": "short reason" }
-  ]
-}`;
-
-  const result = await callGemini(prompt, 1, {
-    temperature: 0.1,
-    topP: 0.3,
-    topK: 1
-  });
-
-  try {
-    const parsed = JSON.parse(result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim());
-    return Array.isArray(parsed.regenerate) ? parsed.regenerate : [];
-  } catch {
-    return [];
-  }
-}
-
 async function reviewGeneratedQuestions(rawQuestions, context = {}) {
   let questions = normalizeGeneratedQuestions(
     rawQuestions,
@@ -8306,7 +8268,7 @@ async function reviewGeneratedQuestions(rawQuestions, context = {}) {
     }
   }
 
-  const reviewPasses = context.reviewPasses || 2;
+  const reviewPasses = context.reviewPasses || 1;
   for (let pass = 1; pass <= reviewPasses; pass++) {
     const prompt = `당신은 시험 문제 검수위원입니다.
 아래 ${questions.length}개 객관식 문제를 검토하고, 정답 인덱스(answer)와 해설이 실제 문제 풀이 결과와 일치하도록 교정하세요.
@@ -8341,7 +8303,17 @@ ${JSON.stringify({ questions }, null, 2)}
   ]
 }`;
 
-    const result = await callGemini(prompt, 1, {
+    const reviewPrompt = prompt + `
+
+Additional speed-critical review rules:
+- Do this review in one pass only.
+- If the answer and explanation disagree but the question has one clear correct option, fix "answer" or "explanation" and set "_reviewAction": "fixed_answer".
+- If the question has no correct option, multiple correct options, missing conditions, contradictory data, or cannot be solved reliably, do not try to repair it here. Set "_reviewAction": "regenerate" and write a short "_reviewReason".
+- If the question is valid, set "_reviewAction": "ok".
+- Keep the same question count and order exactly.
+- Include "_reviewAction" and "_reviewReason" in each returned question object.`;
+
+    const result = await callGemini(reviewPrompt, 1, {
       temperature: 0.1,
       topP: 0.3,
       topK: 1
@@ -8362,15 +8334,14 @@ ${JSON.stringify({ questions }, null, 2)}
     if (hasInvalidGeneratedQuestion(reviewedQuestions) || reviewedQuestions.length !== questions.length) {
       throw new Error('검토된 문제 형식 오류');
     }
-    const regenerateItems = await findQuestionsNeedingRegeneration(reviewedQuestions);
-    for (const item of regenerateItems) {
-      const index = Number(item.index);
-      if (Number.isInteger(index) && index >= 0 && index < reviewedQuestions.length) {
-        reviewedQuestions[index] = await regenerateGeneratedQuestion(
-          reviewedQuestions[index],
-          index,
+    for (let i = 0; i < reviewedQuestions.length; i++) {
+      const action = String(reviewedQuestions[i]._reviewAction || '').toLowerCase();
+      if (action === 'regenerate') {
+        reviewedQuestions[i] = await regenerateGeneratedQuestion(
+          reviewedQuestions[i],
+          i,
           context,
-          item.reason || 'quality gate marked this item for regeneration'
+          reviewedQuestions[i]._reviewReason || 'reviewer marked this item for regeneration'
         );
       }
     }
@@ -8582,7 +8553,7 @@ ${currentMode === 'ncs' ? `8. NCS 문항은 너무 짧게 만들지 마세요. �
       fallbackSubjects: subjects,
       fallbackDifficulty: difficulty,
       expectedCount: count,
-      reviewPasses: 2
+      reviewPasses: 1
     });
 
     if (hasInvalidGeneratedQuestion(questions)) {
@@ -9228,7 +9199,7 @@ JSON 형식으로만 반환 (마크다운 코드 블록 없이):
       fallbackSubjects: [weakness.subject || '기타'],
       fallbackDifficulty: difficulty,
       expectedCount: count,
-      reviewPasses: 2
+      reviewPasses: 1
     });
     if (hasInvalidGeneratedQuestion(quizData.questions)) {
       showToast('생성된 취약점 문제의 정답/선택지/해설 형식이 올바르지 않습니다. 다시 시도해주세요.', 'error');
